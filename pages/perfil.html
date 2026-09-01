@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mi perfil | SNSP Inteligencia Digital</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../styles/tokens.css">
+<link rel="stylesheet" href="../styles/main.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="app-main">
+    <header class="topbar" id="topbar"></header>
+    <main class="app-content">
+
+      <div class="panel-grid">
+        <section class="card col-span-5">
+          <div class="section-header"><div class="section-header__title">Mi información</div></div>
+          <table style="width:100%;">
+            <tbody>
+              <tr><td class="col-text" style="font-weight:600; width:40%;">Nombre</td><td class="col-text" id="p-nombre"></td></tr>
+              <tr><td class="col-text" style="font-weight:600;">Cargo</td><td class="col-text" id="p-cargo"></td></tr>
+              <tr><td class="col-text" style="font-weight:600;">Correo</td><td class="col-text" id="p-email"></td></tr>
+              <tr><td class="col-text" style="font-weight:600;">Rol</td><td class="col-text"><span class="badge badge-role" id="p-rol"></span></td></tr>
+              <tr><td class="col-text" style="font-weight:600;">Cuenta creada</td><td class="col-text" id="p-created"></td></tr>
+              <tr><td class="col-text" style="font-weight:600;">Último acceso</td><td class="col-text" id="p-last"></td></tr>
+            </tbody>
+          </table>
+          <p class="text-muted" style="font-size:var(--fs-caption); margin-top:var(--sp-4);">Para cambiar tu nombre, cargo o correo, contacta a un usuario Administrador en Configuración → Usuarios.</p>
+        </section>
+
+        <section class="card col-span-7" id="cambiar-password">
+          <div class="section-header">
+            <div>
+              <div class="section-header__title">Cambiar contraseña</div>
+              <div class="section-header__subtitle">Aplica sólo a tu cuenta</div>
+            </div>
+          </div>
+          <form id="password-form" style="max-width:360px; display:flex; flex-direction:column; gap:var(--sp-4);" onsubmit="return false;">
+            <div class="field">
+              <label for="pw-actual">Contraseña actual</label>
+              <input type="password" id="pw-actual" required>
+            </div>
+            <div class="field">
+              <label for="pw-nueva">Nueva contraseña</label>
+              <input type="password" id="pw-nueva" required minlength="4">
+            </div>
+            <div class="field">
+              <label for="pw-confirma">Confirmar nueva contraseña</label>
+              <input type="password" id="pw-confirma" required minlength="4">
+            </div>
+            <div id="pw-error" class="alert alert-warning" style="display:none;"></div>
+            <div id="pw-success" class="alert" style="display:none; background:#E1EFEA; color:var(--c-verde-claro);"></div>
+            <button class="btn btn-primary" id="btn-pw-guardar" type="submit" style="justify-content:center; max-width:220px;">Actualizar contraseña</button>
+          </form>
+        </section>
+      </div>
+
+      <div class="methodology-footer">
+        <span>SNSP | Inteligencia Digital v<span id="version-tag"></span></span>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="../config/config.js"></script>
+<script src="../auth/auth.js"></script>
+<script src="../components/sidebar.js"></script>
+<script src="../components/topbar.js"></script>
+<script>
+  window.SNSP_AUTH.requireAuth("../index.html");
+  SNSP_renderSidebar("sidebar", "");
+  SNSP_renderTopbar("topbar", { title: "Mi perfil", subtitle: "Información de la cuenta", rootPath: "../" });
+  document.getElementById("version-tag").textContent = window.SNSP_CONFIG.platform.version;
+
+  const user = window.SNSP_AUTH.getUser();
+  const role = window.SNSP_AUTH.ROLES[user.role];
+  document.getElementById("p-nombre").textContent = user.nombre;
+  document.getElementById("p-cargo").textContent = user.cargo || "—";
+  document.getElementById("p-email").textContent = user.email;
+  document.getElementById("p-rol").textContent = role ? role.label : user.role;
+  document.getElementById("p-created").textContent = user.createdAt ? new Date(user.createdAt).toLocaleDateString("es-MX") : "—";
+  document.getElementById("p-last").textContent = user.lastAccess ? new Date(user.lastAccess).toLocaleString("es-MX") : "Este es tu primer acceso";
+
+  document.getElementById("btn-pw-guardar").addEventListener("click", () => {
+    const errorBox = document.getElementById("pw-error");
+    const successBox = document.getElementById("pw-success");
+    errorBox.style.display = "none";
+    successBox.style.display = "none";
+
+    const actual = document.getElementById("pw-actual").value;
+    const nueva = document.getElementById("pw-nueva").value;
+    const confirma = document.getElementById("pw-confirma").value;
+
+    const isValid = window.SNSP_AUTH.verifyPassword(user.id, actual);
+    if (!isValid) {
+      errorBox.textContent = "Tu contraseña actual no es correcta.";
+      errorBox.style.display = "flex";
+      return;
+    }
+    if (nueva !== confirma) {
+      errorBox.textContent = "La nueva contraseña y su confirmación no coinciden.";
+      errorBox.style.display = "flex";
+      return;
+    }
+    const result = window.SNSP_AUTH.setUserPassword(user.id, nueva);
+    if (!result.ok) {
+      errorBox.textContent = result.error;
+      errorBox.style.display = "flex";
+      return;
+    }
+    successBox.textContent = "Contraseña actualizada correctamente.";
+    successBox.style.display = "flex";
+    document.getElementById("password-form").reset();
+  });
+
+  if (window.location.hash === "#cambiar-password") {
+    document.getElementById("cambiar-password").scrollIntoView({ behavior: "smooth" });
+  }
+</script>
+</body>
+</html>

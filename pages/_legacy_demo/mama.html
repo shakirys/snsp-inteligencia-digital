@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cáncer de mama | SNSP Inteligencia Digital</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../styles/tokens.css">
+<link rel="stylesheet" href="../styles/main.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="app-main">
+    <header class="topbar" id="topbar"></header>
+    <main class="app-content">
+
+      <div class="filter-bar" id="filter-bar"></div>
+
+      <div class="flex justify-between items-center mb-2">
+        <span class="badge badge-demo">Datos de ejemplo</span>
+        <div class="flex gap-2">
+          <button class="btn btn-secondary btn-sm" id="btn-export-pdf">Exportar PDF</button>
+          <button class="btn btn-secondary btn-sm" id="btn-export-xlsx">Exportar Excel</button>
+        </div>
+      </div>
+
+      <div class="indicator-grid" id="kpi-grid"></div>
+
+      <div id="empty-state-wrap" style="display:none;">
+        <div class="card empty-state">
+          <h3>Sin registros para los filtros seleccionados</h3>
+          <p class="pending-data">Dato pendiente de carga</p>
+        </div>
+      </div>
+
+      <div id="data-panels">
+        <div class="panel-grid">
+          <section class="card col-span-6">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Tendencia de incidencia</div>
+                <div class="section-header__subtitle">Cáncer de mama, x100,000 mujeres</div>
+              </div>
+            </div>
+            <div style="height:240px;"><canvas id="chart-trend"></canvas></div>
+          </section>
+
+          <section class="card col-span-6">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Cobertura de tamizaje por jurisdicción</div>
+              </div>
+            </div>
+            <div style="height:240px;"><canvas id="chart-jurisdiccion"></canvas></div>
+          </section>
+
+          <section class="card col-span-6">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Ranking de municipios</div>
+                <div class="section-header__subtitle">Por incidencia (x100k), mayor a menor</div>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>#</th><th>Municipio</th><th>Incidencia x100k</th><th>Casos</th></tr></thead>
+                <tbody id="ranking-body"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="card col-span-6">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Mapa de Querétaro</div>
+                <div class="section-header__subtitle">Incidencia por municipio</div>
+              </div>
+            </div>
+            <div class="map-wrap">
+              <div class="map-svg-box" id="map-svg"></div>
+              <div class="map-legend" id="map-legend"></div>
+            </div>
+          </section>
+
+          <section class="card col-span-12">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Tabla dinámica de registros</div>
+                <div class="section-header__subtitle" id="table-count"></div>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th class="sortable">Año</th><th class="sortable">Jurisdicción</th><th class="sortable">Municipio</th>
+                    <th class="sortable">Institución</th><th class="sortable">Casos</th>
+                    <th class="sortable">Incidencia x100k</th><th class="sortable">Cobertura tamizaje</th><th class="sortable">Mortalidad x100k</th>
+                  </tr>
+                </thead>
+                <tbody id="table-body"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div class="methodology-footer">
+        <span>Fuente: <span id="source-label"></span> · <a href="metodologia.html">Ver apartado metodológico</a></span>
+        <span>SNSP | Inteligencia Digital v<span id="version-tag-module"></span></span>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="../config/config.js"></script>
+<script src="../auth/auth.js"></script>
+<script src="../services/dataService.js"></script>
+<script src="../data/mama_rows.js"></script>
+<script src="../components/sidebar.js"></script>
+<script src="../components/topbar.js"></script>
+<script src="../components/indicatorCard.js"></script>
+<script src="../components/charts.js"></script>
+<script src="../components/filterBar.js"></script>
+<script src="../components/mapQueretaro.js"></script>
+<script src="../modules/moduleView.js"></script>
+<script>
+  SNSP_renderModulePage({
+    moduleId: "mama",
+    title: "Cáncer de mama",
+    mapUnit: " x100k",
+    sourceLabel: "Datos de ejemplo — SNSP Querétaro (pendiente de conexión con fuente oficial)",
+  });
+</script>
+</body>
+</html>

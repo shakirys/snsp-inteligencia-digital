@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard | SNSP Inteligencia Digital</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="styles/tokens.css">
+<link rel="stylesheet" href="styles/main.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="app-main">
+    <header class="topbar" id="topbar"></header>
+    <main class="app-content">
+
+      <div class="indicator-grid" id="kpi-grid"></div>
+
+      <div class="panel-grid">
+        <section class="card col-span-6">
+          <div class="section-header">
+            <div>
+              <div class="section-header__title">Casos confirmados por entidad — CACU vs. Mama</div>
+              <div class="section-header__subtitle">Top 10 entidades combinadas, datos oficiales 2025</div>
+            </div>
+          </div>
+          <div style="height:420px;"><canvas id="chart-tendencia"></canvas></div>
+        </section>
+
+        <section class="card col-span-6">
+          <div class="section-header">
+            <div>
+              <div class="section-header__title">Volumen de pruebas registradas por tipo</div>
+              <div class="section-header__subtitle">Citologías, PCR VPH y mastografías, datos oficiales 2025</div>
+            </div>
+          </div>
+          <div style="height:420px;"><canvas id="chart-institucion"></canvas></div>
+        </section>
+
+        <section class="card col-span-12">
+          <div class="section-header">
+            <div>
+              <div class="section-header__title">Accesos recientes al sistema</div>
+              <div class="section-header__subtitle">Bitácora de la sesión actual (demostrativa)</div>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Fecha y hora</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr></thead>
+              <tbody id="bitacora-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <div class="methodology-footer">
+        <span>Fuente: Bases oficiales 2025 (CACU y Cáncer de mama, nacional) — SNSP. Consulta el <a href="pages/metodologia.html">apartado metodológico</a>.</span>
+        <span>SNSP | Inteligencia Digital v<span id="version-tag"></span></span>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="config/config.js"></script>
+<script src="auth/auth.js"></script>
+<script src="services/dataService.js"></script>
+<script src="services/realDataService.js"></script>
+<script src="data/real/indicadores_2025.js"></script>
+<script src="components/sidebar.js"></script>
+<script src="components/topbar.js"></script>
+<script src="components/indicatorCard.js"></script>
+<script src="components/charts.js"></script>
+<script>
+  window.SNSP_AUTH.requireAuth("index.html");
+
+  SNSP_renderSidebar("sidebar", "dashboard");
+  SNSP_renderTopbar("topbar", { title: "Dashboard general", subtitle: "Panorama nacional — CACU y Cáncer de mama", updated: "20/07/2026", rootPath: "" });
+  document.getElementById("version-tag").textContent = window.SNSP_CONFIG.platform.version;
+
+  const cacu = window.SNSP_REAL_SERVICE.getCacuIndicadores({});
+  const mama = window.SNSP_REAL_SERVICE.getMamaIndicadores({});
+
+  const kpis = [
+    { label: "Casos confirmados CACU", value: cacu.casos_confirmados.total, accent: "var(--c-vino)", footnote: "Total nacional 2025" },
+    { label: "Casos confirmados Mama", value: mama.casos_confirmados.total, accent: "var(--c-rojo-claro)", footnote: "Total nacional 2025" },
+    { label: "Pruebas de tamizaje CACU", value: cacu.citologia_convencional.total + cacu.citologia_base_liquida.total + cacu.pcr_vph.total, accent: "var(--c-dorado)", footnote: "Citología convencional + base líquida + PCR VPH" },
+    { label: "Mastografías registradas", value: mama.mastografias.total, accent: "var(--c-verde-claro)", footnote: "Total nacional 2025" },
+  ];
+  document.getElementById("kpi-grid").innerHTML = kpis.map(SNSP_indicatorCardHTML).join("");
+
+  // ---- Casos por entidad, CACU vs. Mama (top 10 combinadas) ----
+  const cacuPorEntidad = cacu.casos_confirmados.por_entidad;
+  const mamaPorEntidad = mama.casos_confirmados.por_entidad;
+  const entidadesUnion = Array.from(new Set([...Object.keys(cacuPorEntidad), ...Object.keys(mamaPorEntidad)]));
+  const topEntidades = entidadesUnion
+    .map((e) => ({ e, total: (cacuPorEntidad[e] || 0) + (mamaPorEntidad[e] || 0) }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 10)
+    .map((r) => r.e);
+  SNSP_renderGroupedBarChart("chart-tendencia", topEntidades, [
+    { label: "CACU", data: topEntidades.map((e) => cacuPorEntidad[e] || 0) },
+    { label: "Mama", data: topEntidades.map((e) => mamaPorEntidad[e] || 0) },
+  ], null, {
+    horizontal: true,
+    tituloPartes: { indicador: "Casos confirmados", dimension: "entidad federativa (top 10)", padecimiento: "CACU y Cáncer de mama", lugar: "el ámbito nacional", periodo: "2025" },
+  });
+
+  // ---- Volumen de pruebas por tipo ----
+  SNSP_renderBarChart("chart-institucion",
+    ["Citología convencional", "Citología base líquida", "PCR VPH", "Mastografías"],
+    [cacu.citologia_convencional.total, cacu.citologia_base_liquida.total, cacu.pcr_vph.total, mama.mastografias.total],
+    "Pruebas registradas", {
+      tituloPartes: { indicador: "Pruebas registradas", dimension: "tipo de prueba", padecimiento: "CACU y Cáncer de mama", lugar: "el ámbito nacional", periodo: "2025" },
+    });
+
+  const bitacora = window.SNSP_AUTH.getBitacora();
+  document.getElementById("bitacora-body").innerHTML = bitacora.length
+    ? bitacora.map((b) => `<tr><td>${new Date(b.ts).toLocaleString("es-MX")}</td><td class="col-text">${b.user}</td><td class="col-text">${b.action}</td><td class="col-text">${b.detail || "—"}</td></tr>`).join("")
+    : `<tr><td colspan="4" class="pending-data col-text">Sin actividad registrada en esta sesión</td></tr>`;
+</script>
+</body>
+</html>

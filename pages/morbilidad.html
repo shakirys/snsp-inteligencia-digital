@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Morbilidad en el estado de Querétaro | SNSP Inteligencia Digital</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../styles/tokens.css">
+<link rel="stylesheet" href="../styles/main.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="app-main">
+    <header class="topbar" id="topbar"></header>
+    <main class="app-content">
+
+      <div class="card mb-4" style="padding:var(--sp-4);">
+        <div class="section-header" style="margin-bottom:var(--sp-3);">
+          <div>
+            <div class="section-header__title">Buscar por CIE-10, Epi-clave o padecimiento</div>
+            <div class="section-header__subtitle">Consulta específica dentro de la morbilidad de Querétaro</div>
+          </div>
+        </div>
+        <div class="cie10-search-wrap" id="cie10-search-wrap">
+          <input type="text" id="cie10-search" placeholder="Ej. C50, N87, 119, &quot;tumor maligno de la mama&quot;…" autocomplete="off">
+          <div class="cie10-resultados" id="cie10-resultados"></div>
+        </div>
+        <p class="text-muted" style="font-size:var(--fs-caption); margin:8px 0 6px;">Accesos rápidos (sólo códigos presentes en esta base):</p>
+        <div class="quick-access-row" id="accesos-rapidos"></div>
+        <div class="seleccion-actual mt-2" id="seleccion-actual"></div>
+      </div>
+
+      <div class="filter-bar" id="filter-bar"></div>
+      <p class="text-muted" style="font-size:var(--fs-caption); margin:-6px 0 10px;">
+        Filtros no disponibles en esta fuente: sexo, grupo de edad. Esta base es exclusivamente del estado de Querétaro (no incluye comparativo nacional ni filtro de entidad).
+      </p>
+
+      <div class="flex justify-between items-center mb-2">
+        <span class="badge badge-demo">Datos oficiales — Estado de Querétaro · Prueba funcional</span>
+        <div class="flex gap-2">
+          <button class="btn btn-secondary btn-sm" id="btn-export-pdf">Exportar PDF (pendiente)</button>
+          <button class="btn btn-secondary btn-sm" id="btn-export-xlsx">Exportar Excel (pendiente)</button>
+        </div>
+      </div>
+
+      <div id="panel-sin-seleccion">
+        <div class="card mb-4" style="padding:var(--sp-4);">
+          <div class="section-header" style="margin-bottom:var(--sp-2);">
+            <div>
+              <div class="section-header__title">Principales padecimientos</div>
+              <div class="section-header__subtitle">Con los filtros actuales aplicados — selecciona uno arriba (búsqueda o acceso rápido) para ver el detalle completo</div>
+            </div>
+          </div>
+          <div style="height:520px;"><canvas id="chart-principales-generales"></canvas></div>
+          <div class="table-wrap mt-3">
+            <table>
+              <thead><tr><th>#</th><th>Padecimiento</th><th>CIE-10</th><th>Casos</th></tr></thead>
+              <tbody id="principales-generales-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="data-panels" style="display:none;">
+        <div class="indicator-grid" id="kpi-grid"></div>
+
+        <div class="panel-grid">
+          <section class="card col-span-12">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Casos por municipio</div>
+                <div class="section-header__subtitle">Los 18 municipios de Querétaro, de mayor a menor</div>
+              </div>
+            </div>
+            <div style="height:560px;"><canvas id="chart-municipio"></canvas></div>
+            <span class="nota-discreta" id="nota-municipios-sin-casos" style="display:none;"></span>
+          </section>
+
+          <section class="card col-span-6">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Casos por jurisdicción sanitaria</div>
+                <div class="section-header__subtitle">Distribución del total filtrado</div>
+              </div>
+            </div>
+            <div style="height:320px;"><canvas id="chart-jurisdiccion"></canvas></div>
+          </section>
+
+          <section class="card col-span-6">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Tendencia anual</div>
+                <div class="section-header__subtitle">Cuando hay más de un año disponible sin filtrar a uno solo</div>
+              </div>
+            </div>
+            <div id="panel-tendencia-anual" style="display:none; height:320px;"><canvas id="chart-tendencia-anual"></canvas></div>
+          </section>
+
+          <section class="card col-span-12">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Casos por institución</div>
+                <div class="section-header__subtitle">SESA, IMSS, ISSSTE, Cruz Roja y demás instituciones registradas</div>
+              </div>
+            </div>
+            <div style="height:420px;"><canvas id="chart-institucion"></canvas></div>
+          </section>
+
+          <section class="card col-span-12">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Casos por mes y año</div>
+                <div class="section-header__subtitle">Comparativo entre los años disponibles</div>
+              </div>
+            </div>
+            <div style="height:340px;"><canvas id="chart-tiempo"></canvas></div>
+          </section>
+
+          <section class="card col-span-6">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Casos por sexo</div>
+                <div class="section-header__subtitle">Distribución de la selección actual</div>
+              </div>
+            </div>
+            <div class="empty-state" style="padding:var(--sp-5) var(--sp-3);">
+              <p class="pending-data">Dato pendiente de carga</p>
+              <p class="text-muted" style="font-size:var(--fs-caption);">Esta base de morbilidad no incluye la variable sexo.</p>
+            </div>
+          </section>
+
+          <section class="card col-span-6">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Casos por grupo de edad</div>
+                <div class="section-header__subtitle">Distribución de la selección actual</div>
+              </div>
+            </div>
+            <div class="empty-state" style="padding:var(--sp-5) var(--sp-3);">
+              <p class="pending-data">Dato pendiente de carga</p>
+              <p class="text-muted" style="font-size:var(--fs-caption);">Esta base de morbilidad no incluye la variable grupo de edad.</p>
+            </div>
+          </section>
+
+          <section class="card col-span-12">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Padecimiento(s) dentro de la selección</div>
+                <div class="section-header__subtitle">Útil cuando un acceso rápido agrupa más de un Epi-clave (p. ej. N87)</div>
+              </div>
+            </div>
+            <div style="height:320px;"><canvas id="chart-padecimientos"></canvas></div>
+          </section>
+
+          <section class="card col-span-12">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Detalle por CLUES / unidad médica</div>
+                <div class="section-header__subtitle">Ordenado por casos, mayor a menor</div>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>CLUES</th><th>Unidad médica</th><th>Municipio</th><th>Institución</th><th>Casos</th></tr></thead>
+                <tbody id="clues-body"></tbody>
+              </table>
+            </div>
+            <p class="text-muted mt-2" id="clues-count" style="font-size:var(--fs-caption);"></p>
+          </section>
+        </div>
+      </div>
+
+      <div class="methodology-footer">
+        <span>Fuente: <span id="source-label"></span> · <a href="metodologia.html">Ver apartado metodológico</a></span>
+        <span>SNSP | Inteligencia Digital v<span id="version-tag-module"></span></span>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="../config/config.js"></script>
+<script src="../auth/auth.js"></script>
+<script src="../services/dataService.js"></script>
+<script src="../services/realDataService.js"></script>
+<script src="../services/morbilidadDataService.js"></script>
+<script src="../data/real/indicadores_2025.js"></script>
+<script src="../data/real/morbilidad_2025.js"></script>
+<script src="../components/sidebar.js"></script>
+<script src="../components/topbar.js"></script>
+<script src="../components/indicatorCard.js"></script>
+<script src="../components/charts.js"></script>
+<script src="../components/filterBar.js"></script>
+<script src="../modules/morbilidadModuleView.js"></script>
+<script>
+  SNSP_renderMorbilidadModulePage({});
+</script>
+</body>
+</html>

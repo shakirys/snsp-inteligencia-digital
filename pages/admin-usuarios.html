@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Usuarios | SNSP Inteligencia Digital</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../styles/tokens.css">
+<link rel="stylesheet" href="../styles/main.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="app-main">
+    <header class="topbar" id="topbar"></header>
+    <main class="app-content">
+
+      <div id="no-access-wrap" style="display:none;">
+        <div class="card empty-state">
+          <h3>Acceso restringido</h3>
+          <p>Tu perfil no cuenta con el permiso <strong>administrar_usuarios</strong>.</p>
+        </div>
+      </div>
+
+      <div id="admin-content" style="display:none;">
+        <div class="panel-grid">
+          <section class="card col-span-12">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Usuarios del sistema</div>
+                <div class="section-header__subtitle">Administrado localmente por ahora — preparado para migrar a Supabase sin cambiar esta pantalla</div>
+              </div>
+              <button class="btn btn-primary btn-sm" id="btn-nuevo-usuario">+ Nuevo usuario</button>
+            </div>
+
+            <div class="filter-bar" style="margin-top:var(--sp-2);">
+              <div class="field">
+                <label for="f-nombre">Buscar por nombre</label>
+                <input type="text" id="f-nombre" placeholder="Nombre...">
+              </div>
+              <div class="field">
+                <label for="f-email">Buscar por correo</label>
+                <input type="text" id="f-email" placeholder="correo@...">
+              </div>
+              <div class="field">
+                <label for="f-rol">Rol</label>
+                <select id="f-rol"><option value="">Todos</option></select>
+              </div>
+              <div class="field">
+                <label for="f-eliminados">&nbsp;</label>
+                <label style="display:flex; align-items:center; gap:6px; font-size:var(--fs-body-sm); height:38px;">
+                  <input type="checkbox" id="f-eliminados"> Mostrar eliminados
+                </label>
+              </div>
+              <div class="filter-bar__actions">
+                <button class="btn btn-ghost btn-sm" id="btn-limpiar-busqueda">Limpiar</button>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Usuario</th><th>Cargo</th><th>Correo</th><th>Rol</th><th>Estado</th>
+                    <th>Creado</th><th>Último acceso</th><th></th>
+                  </tr>
+                </thead>
+                <tbody id="users-body"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="card col-span-12">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Bitácora de accesos y acciones</div>
+                <div class="section-header__subtitle">Registro de la sesión actual (demostrativo, en memoria del navegador)</div>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Fecha y hora</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr></thead>
+                <tbody id="bitacora-body"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div class="methodology-footer">
+        <span>Contacto de soporte: <span id="support-email"></span></span>
+        <span>SNSP | Inteligencia Digital v<span id="version-tag"></span></span>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Modal: alta / edición de usuario -->
+<div class="modal-overlay" id="modal-usuario">
+  <div class="modal-box">
+    <h3 id="modal-usuario-title">Nuevo usuario</h3>
+    <form id="form-usuario">
+      <div class="field">
+        <label for="fu-nombre">Nombre completo</label>
+        <input type="text" id="fu-nombre" placeholder="Lic. / Ing. Nombre Apellido" required>
+      </div>
+      <div class="field">
+        <label for="fu-cargo">Cargo institucional</label>
+        <input type="text" id="fu-cargo" placeholder="Ej. Analista de Estadística">
+      </div>
+      <div class="field">
+        <label for="fu-email">Correo institucional</label>
+        <input type="email" id="fu-email" required>
+      </div>
+      <div class="field">
+        <label for="fu-rol">Rol</label>
+        <select id="fu-rol" required></select>
+      </div>
+      <div class="field" id="fu-password-wrap">
+        <label for="fu-password">Contraseña inicial (opcional)</label>
+        <input type="text" id="fu-password" placeholder="Si se deja vacío, se asigna una contraseña por defecto">
+      </div>
+      <div class="modal-box__error" id="modal-usuario-error"></div>
+      <div class="modal-box__actions">
+        <button type="button" class="btn btn-ghost btn-sm" id="btn-cancelar-usuario">Cancelar</button>
+        <button type="submit" class="btn btn-primary btn-sm" id="btn-guardar-usuario">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: cambio de contraseña (por un administrador) -->
+<div class="modal-overlay" id="modal-password">
+  <div class="modal-box">
+    <h3>Cambiar contraseña</h3>
+    <p class="text-muted col-text" style="font-size:var(--fs-body-sm);" id="modal-password-user"></p>
+    <form id="form-password">
+      <div class="field">
+        <label for="fp-password">Nueva contraseña</label>
+        <input type="text" id="fp-password" minlength="4" required>
+      </div>
+      <div class="modal-box__error" id="modal-password-error"></div>
+      <div class="modal-box__actions">
+        <button type="button" class="btn btn-ghost btn-sm" id="btn-cancelar-password">Cancelar</button>
+        <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="../config/config.js"></script>
+<script src="../auth/auth.js"></script>
+<script src="../components/sidebar.js"></script>
+<script src="../components/topbar.js"></script>
+<script>
+  window.SNSP_AUTH.requireAuth("../index.html");
+  SNSP_renderSidebar("sidebar", "admin");
+  SNSP_renderTopbar("topbar", { title: "Usuarios", subtitle: "Configuración del sistema", rootPath: "../" });
+  document.getElementById("support-email").textContent = window.SNSP_CONFIG.institution.supportEmail;
+  document.getElementById("version-tag").textContent = window.SNSP_CONFIG.platform.version;
+
+  const canAdmin = window.SNSP_AUTH.can("administrar_usuarios");
+  document.getElementById("no-access-wrap").style.display = canAdmin ? "none" : "block";
+  document.getElementById("admin-content").style.display = canAdmin ? "block" : "none";
+
+  if (canAdmin) {
+    const AUTH = window.SNSP_AUTH;
+    let editingId = null; // null = alta; id = edición
+
+    // ---- Selects de rol (filtro + modal) ----
+    const roleOptionsHTML = Object.entries(AUTH.ROLES).map(([key, r]) => `<option value="${key}">${r.label}</option>`).join("");
+    document.getElementById("f-rol").insertAdjacentHTML("beforeend", roleOptionsHTML);
+    document.getElementById("fu-rol").innerHTML = roleOptionsHTML;
+
+    function fmtDate(iso) { return iso ? new Date(iso).toLocaleDateString("es-MX") : "—"; }
+    function fmtDateTime(iso) { return iso ? new Date(iso).toLocaleString("es-MX") : "Nunca"; }
+
+    function currentFilters() {
+      return {
+        nombre: document.getElementById("f-nombre").value,
+        email: document.getElementById("f-email").value,
+        role: document.getElementById("f-rol").value,
+        includeDeleted: document.getElementById("f-eliminados").checked,
+      };
+    }
+
+    function renderTable() {
+      const users = AUTH.listUsers(currentFilters());
+      document.getElementById("users-body").innerHTML = users.length ? users.map((u) => {
+        const role = AUTH.ROLES[u.role];
+        const statusBadge = u.status === "activo" ? '<span class="badge badge-active">Activo</span>'
+          : u.status === "inactivo" ? '<span class="badge badge-inactive">Inactivo</span>'
+          : '<span class="badge" style="background:var(--bg-sunken); color:var(--text-muted);">Eliminado</span>';
+        return `
+        <tr>
+          <td class="col-text" style="font-weight:600;">${u.nombre}</td>
+          <td class="col-text">${u.cargo || "—"}</td>
+          <td class="col-text">${u.email}</td>
+          <td class="col-text"><span class="badge badge-role">${role ? role.label : u.role}</span></td>
+          <td>${statusBadge}</td>
+          <td class="col-text">${fmtDate(u.createdAt)}</td>
+          <td class="col-text">${fmtDateTime(u.lastAccess)}</td>
+          <td style="white-space:nowrap;">
+            ${u.status !== "eliminado" ? `
+              <button class="btn btn-ghost btn-sm" data-action="editar" data-id="${u.id}">Editar</button>
+              <button class="btn btn-ghost btn-sm" data-action="password" data-id="${u.id}">Contraseña</button>
+              <button class="btn btn-ghost btn-sm" data-action="estado" data-id="${u.id}">${u.status === "activo" ? "Desactivar" : "Activar"}</button>
+              <button class="btn btn-ghost btn-sm" data-action="eliminar" data-id="${u.id}" style="color:var(--c-rojo-claro);">Eliminar</button>
+            ` : `<button class="btn btn-ghost btn-sm" data-action="restaurar" data-id="${u.id}">Restaurar</button>`}
+          </td>
+        </tr>`;
+      }).join("") : `<tr><td colspan="8" class="pending-data col-text">Ningún usuario coincide con la búsqueda</td></tr>`;
+    }
+
+    // ---- Búsqueda / filtros ----
+    ["f-nombre", "f-email", "f-rol"].forEach((id) => document.getElementById(id).addEventListener("input", renderTable));
+    document.getElementById("f-rol").addEventListener("change", renderTable);
+    document.getElementById("f-eliminados").addEventListener("change", renderTable);
+    document.getElementById("btn-limpiar-busqueda").addEventListener("click", () => {
+      document.getElementById("f-nombre").value = "";
+      document.getElementById("f-email").value = "";
+      document.getElementById("f-rol").value = "";
+      document.getElementById("f-eliminados").checked = false;
+      renderTable();
+    });
+
+    // ---- Modal alta/edición ----
+    const modalUsuario = document.getElementById("modal-usuario");
+    function openModalUsuario(user) {
+      editingId = user ? user.id : null;
+      document.getElementById("modal-usuario-title").textContent = user ? "Editar usuario" : "Nuevo usuario";
+      document.getElementById("fu-nombre").value = user ? user.nombre : "";
+      document.getElementById("fu-cargo").value = user ? user.cargo : "";
+      document.getElementById("fu-email").value = user ? user.email : "";
+      document.getElementById("fu-rol").value = user ? user.role : "consulta";
+      document.getElementById("fu-password").value = "";
+      document.getElementById("fu-password-wrap").style.display = user ? "none" : "block";
+      document.getElementById("modal-usuario-error").classList.remove("is-visible");
+      modalUsuario.classList.add("is-open");
+    }
+    function closeModalUsuario() { modalUsuario.classList.remove("is-open"); }
+    document.getElementById("btn-nuevo-usuario").addEventListener("click", () => openModalUsuario(null));
+    document.getElementById("btn-cancelar-usuario").addEventListener("click", closeModalUsuario);
+    modalUsuario.addEventListener("click", (e) => { if (e.target === modalUsuario) closeModalUsuario(); });
+
+    document.getElementById("form-usuario").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const errorBox = document.getElementById("modal-usuario-error");
+      const data = {
+        nombre: document.getElementById("fu-nombre").value.trim(),
+        cargo: document.getElementById("fu-cargo").value.trim(),
+        email: document.getElementById("fu-email").value.trim(),
+        role: document.getElementById("fu-rol").value,
+        password: document.getElementById("fu-password").value.trim(),
+      };
+      const result = editingId ? AUTH.updateUser(editingId, data) : AUTH.createUser(data);
+      if (!result.ok) {
+        errorBox.textContent = result.error;
+        errorBox.classList.add("is-visible");
+        return;
+      }
+      closeModalUsuario();
+      renderTable();
+    });
+
+    // ---- Modal contraseña ----
+    const modalPassword = document.getElementById("modal-password");
+    let passwordTargetId = null;
+    function openModalPassword(user) {
+      passwordTargetId = user.id;
+      document.getElementById("modal-password-user").textContent = `${user.nombre} (${user.email})`;
+      document.getElementById("fp-password").value = "";
+      document.getElementById("modal-password-error").classList.remove("is-visible");
+      modalPassword.classList.add("is-open");
+    }
+    function closeModalPassword() { modalPassword.classList.remove("is-open"); }
+    document.getElementById("btn-cancelar-password").addEventListener("click", closeModalPassword);
+    modalPassword.addEventListener("click", (e) => { if (e.target === modalPassword) closeModalPassword(); });
+    document.getElementById("form-password").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const errorBox = document.getElementById("modal-password-error");
+      const result = AUTH.setUserPassword(passwordTargetId, document.getElementById("fp-password").value);
+      if (!result.ok) {
+        errorBox.textContent = result.error;
+        errorBox.classList.add("is-visible");
+        return;
+      }
+      closeModalPassword();
+      renderTable();
+    });
+
+    // ---- Acciones de la tabla (delegación de eventos) ----
+    document.getElementById("users-body").addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-action]");
+      if (!btn) return;
+      const id = btn.dataset.id;
+      const user = AUTH.getUserById(id);
+      const action = btn.dataset.action;
+      if (action === "editar") openModalUsuario(user);
+      else if (action === "password") openModalPassword(user);
+      else if (action === "estado") {
+        AUTH.setUserStatus(id, user.status === "activo" ? "inactivo" : "activo");
+        renderTable();
+      } else if (action === "eliminar") {
+        if (confirm(`¿Eliminar (baja lógica) a ${user.nombre}? Podrás restaurarlo activando "Mostrar eliminados".`)) {
+          AUTH.softDeleteUser(id);
+          renderTable();
+        }
+      } else if (action === "restaurar") {
+        AUTH.restoreUser(id);
+        renderTable();
+      }
+    });
+
+    renderTable();
+
+    const bitacora = AUTH.getBitacora();
+    document.getElementById("bitacora-body").innerHTML = bitacora.length
+      ? bitacora.map((b) => `<tr><td>${new Date(b.ts).toLocaleString("es-MX")}</td><td class="col-text">${b.user}</td><td class="col-text">${b.action}</td><td class="col-text">${b.detail || "—"}</td></tr>`).join("")
+      : `<tr><td colspan="4" class="pending-data col-text">Sin actividad registrada en esta sesión</td></tr>`;
+  }
+</script>
+</body>
+</html>

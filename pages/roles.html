@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roles | SNSP Inteligencia Digital</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../styles/tokens.css">
+<link rel="stylesheet" href="../styles/main.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="app-main">
+    <header class="topbar" id="topbar"></header>
+    <main class="app-content">
+
+      <div id="no-access-wrap" style="display:none;">
+        <div class="card empty-state">
+          <h3>Acceso restringido</h3>
+          <p>Esta sección requiere el permiso <strong>administrar_usuarios</strong>.</p>
+        </div>
+      </div>
+
+      <div id="roles-content" style="display:none;">
+        <div class="panel-grid">
+          <section class="card col-span-12">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Catálogo de roles</div>
+                <div class="section-header__subtitle">Estructura preparada para crecer sin rediseñar este módulo — agregar un rol nuevo sólo requiere una entrada en <code>auth/auth.js</code></div>
+              </div>
+            </div>
+            <div class="config-grid" id="roles-grid"></div>
+          </section>
+
+          <section class="card col-span-12">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Matriz de permisos</div>
+                <div class="section-header__subtitle">Visualizar, descargar, editar, cargar información, administrar usuarios, configurar módulos, eliminar información</div>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="perm-matrix">
+                <thead id="perm-head"></thead>
+                <tbody id="perm-body"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div class="methodology-footer">
+        <span>SNSP | Inteligencia Digital v<span id="version-tag"></span></span>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="../config/config.js"></script>
+<script src="../auth/auth.js"></script>
+<script src="../components/sidebar.js"></script>
+<script src="../components/topbar.js"></script>
+<script>
+  window.SNSP_AUTH.requireAuth("../index.html");
+  SNSP_renderSidebar("sidebar", "roles");
+  SNSP_renderTopbar("topbar", { title: "Roles", subtitle: "Configuración del sistema", rootPath: "../" });
+  document.getElementById("version-tag").textContent = window.SNSP_CONFIG.platform.version;
+
+  const canAdmin = window.SNSP_AUTH.can("administrar_usuarios");
+  document.getElementById("no-access-wrap").style.display = canAdmin ? "none" : "block";
+  document.getElementById("roles-content").style.display = canAdmin ? "block" : "none";
+
+  if (canAdmin) {
+    const ROLES = window.SNSP_AUTH.ROLES;
+    const usersByRole = {};
+    window.SNSP_AUTH.listUsers({}).forEach((u) => { usersByRole[u.role] = (usersByRole[u.role] || 0) + 1; });
+
+    document.getElementById("roles-grid").innerHTML = Object.entries(ROLES).map(([key, role]) => `
+      <div class="config-card" style="cursor:default;" onmouseover="this.style.transform='none'">
+        <div class="config-card__icon">&#9878;</div>
+        <div class="config-card__title">${role.label}</div>
+        <div class="config-card__desc">${role.descripcion}</div>
+        <span class="config-card__tag">${usersByRole[key] || 0} usuario(s)</span>
+      </div>
+    `).join("");
+
+    const perms = window.SNSP_AUTH.PERMISSIONS;
+    document.getElementById("perm-head").innerHTML = `<tr><th>Rol</th>${perms.map((p) => `<th>${p.replace(/_/g, " ")}</th>`).join("")}</tr>`;
+    document.getElementById("perm-body").innerHTML = Object.entries(ROLES).map(([key, role]) => `
+      <tr>
+        <td class="col-text" style="font-weight:600;">${role.label}</td>
+        ${perms.map((p) => `<td>${role.permissions.includes(p) ? "&#10003;" : "&#8212;"}</td>`).join("")}
+      </tr>
+    `).join("");
+  }
+</script>
+</body>
+</html>

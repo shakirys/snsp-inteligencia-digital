@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Población en el estado de Querétaro | SNSP Inteligencia Digital</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../styles/tokens.css">
+<link rel="stylesheet" href="../styles/main.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="app-main">
+    <header class="topbar" id="topbar"></header>
+    <main class="app-content">
+
+      <div class="card mb-4" style="padding:var(--sp-4);">
+        <div class="section-header" style="margin-bottom:var(--sp-3);">
+          <div>
+            <div class="section-header__title">Buscar localidad</div>
+            <div class="section-header__subtitle">Filtra la tabla de localidades por nombre</div>
+          </div>
+        </div>
+        <div class="cie10-search-wrap" id="localidad-search-wrap">
+          <input type="text" id="localidad-search" placeholder="Ej. Amealco, San Ildefonso, El Pueblito…" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="filter-bar" id="filter-bar"></div>
+      <p class="text-muted" style="font-size:var(--fs-caption); margin:-6px 0 10px;">
+        Padrón poblacional 2025, exclusivamente del estado de Querétaro, a nivel localidad. Sólo incluye 4 grupos de edad (0-9, 10-19, 20-59, 60+): no se inventan grupos quinquenales.
+      </p>
+
+      <div class="flex justify-between items-center mb-2">
+        <span class="badge badge-demo">Datos oficiales — Padrón ASIS Querétaro 2025</span>
+        <div class="flex gap-2">
+          <button class="btn btn-secondary btn-sm" id="btn-export-pdf">Exportar PDF (pendiente)</button>
+          <button class="btn btn-secondary btn-sm" id="btn-export-xlsx">Exportar Excel (pendiente)</button>
+        </div>
+      </div>
+
+      <div class="indicator-grid" id="kpi-grid"></div>
+
+      <div class="nota-discreta" id="nota-cobertura-edad" style="display:none; margin: var(--sp-3) 0; padding: var(--sp-3); background: var(--chart-nota-bg); border-radius: 6px; font-size: var(--fs-body-sm);"></div>
+
+      <div class="panel-grid">
+        <section class="card col-span-12">
+          <div class="section-header">
+            <div>
+              <div class="section-header__title">Pirámide poblacional</div>
+              <div class="section-header__subtitle">Mujeres y hombres por grupo de edad</div>
+            </div>
+          </div>
+          <div style="height:420px;"><canvas id="chart-piramide"></canvas></div>
+        </section>
+
+        <section class="card col-span-6">
+          <div class="section-header">
+            <div>
+              <div class="section-header__title">Distribución por grupo de edad</div>
+              <div class="section-header__subtitle">Mujeres + hombres, del total filtrado</div>
+            </div>
+          </div>
+          <div style="height:320px;"><canvas id="chart-grupo-edad"></canvas></div>
+        </section>
+
+        <section class="card col-span-6">
+          <div class="section-header">
+            <div>
+              <div class="section-header__title">Mapa por municipio</div>
+              <div class="section-header__subtitle">Ilustrativo — población total por municipio</div>
+            </div>
+          </div>
+          <div class="map-wrap">
+            <div class="map-svg-box" id="mapa-municipios"></div>
+            <div class="map-legend" id="mapa-leyenda"></div>
+          </div>
+        </section>
+
+        <section class="card col-span-12" id="panel-por-municipio">
+          <div class="section-header">
+            <div>
+              <div class="section-header__title">Población total por municipio</div>
+              <div class="section-header__subtitle">Los 18 municipios de Querétaro, de mayor a menor</div>
+            </div>
+          </div>
+          <div style="height:560px;"><canvas id="chart-municipio"></canvas></div>
+        </section>
+
+        <section class="card col-span-12">
+          <div class="section-header">
+            <div>
+              <div class="section-header__title">Localidades</div>
+              <div class="section-header__subtitle">Ordenadas por población total, de mayor a menor</div>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Localidad</th><th>Municipio</th><th>Población total</th><th>Mujeres</th><th>Hombres</th><th>Desglose por edad</th></tr></thead>
+              <tbody id="localidades-body"></tbody>
+            </table>
+          </div>
+          <p class="text-muted mt-2" id="localidades-count" style="font-size:var(--fs-caption);"></p>
+        </section>
+      </div>
+
+      <div class="methodology-footer">
+        <span>Fuente: <span id="source-label"></span> · <a href="metodologia.html">Ver apartado metodológico</a></span>
+        <span>SNSP | Inteligencia Digital v<span id="version-tag-module"></span></span>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="../config/config.js"></script>
+<script src="../auth/auth.js"></script>
+<script src="../services/dataService.js"></script>
+<script src="../services/realDataService.js"></script>
+<script src="../services/poblacionDataService.js"></script>
+<script src="../data/real/indicadores_2025.js"></script>
+<script src="../data/real/poblacion_2025.js"></script>
+<script src="../components/sidebar.js"></script>
+<script src="../components/topbar.js"></script>
+<script src="../components/indicatorCard.js"></script>
+<script src="../components/charts.js"></script>
+<script src="../components/filterBar.js"></script>
+<script src="../components/mapQueretaro.js"></script>
+<script src="../modules/poblacionModuleView.js"></script>
+<script>
+  SNSP_renderPoblacionModulePage({});
+</script>
+</body>
+</html>

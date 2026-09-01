@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Configuración | SNSP Inteligencia Digital</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../styles/tokens.css">
+<link rel="stylesheet" href="../styles/main.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="app-main">
+    <header class="topbar" id="topbar"></header>
+    <main class="app-content">
+
+      <div id="no-access-wrap" style="display:none;">
+        <div class="card empty-state">
+          <h3>Acceso restringido</h3>
+          <p>Esta sección requiere el permiso <strong>administrar_usuarios</strong>.</p>
+        </div>
+      </div>
+
+      <div id="config-content" style="display:none;">
+        <div class="panel-grid">
+          <section class="card col-span-12">
+            <div class="section-header"><div class="section-header__title">Configuración del sistema</div></div>
+            <div class="config-grid">
+              <a class="config-card" href="admin-usuarios.html">
+                <div class="config-card__icon">&#128100;</div>
+                <div class="config-card__title">Usuarios</div>
+                <div class="config-card__desc">Alta, edición, contraseñas, activación y baja lógica.</div>
+              </a>
+              <a class="config-card" href="roles.html">
+                <div class="config-card__icon">&#9878;</div>
+                <div class="config-card__title">Roles</div>
+                <div class="config-card__desc">Catálogo de roles y matriz de permisos.</div>
+              </a>
+              <a class="config-card is-structural" href="#datos-institucionales">
+                <div class="config-card__icon">&#127970;</div>
+                <div class="config-card__title">Datos institucionales</div>
+                <div class="config-card__desc">Nombre, área y contacto de la dependencia.</div>
+                <span class="config-card__tag">Estructural</span>
+              </a>
+              <a class="config-card is-structural" href="#seguridad">
+                <div class="config-card__icon">&#128274;</div>
+                <div class="config-card__title">Seguridad</div>
+                <div class="config-card__desc">Políticas de sesión y autenticación.</div>
+                <span class="config-card__tag">Estructural</span>
+              </a>
+              <a class="config-card is-structural" href="#catalogos">
+                <div class="config-card__icon">&#128218;</div>
+                <div class="config-card__title">Catálogos</div>
+                <div class="config-card__desc">Catálogos base utilizados por los módulos.</div>
+                <span class="config-card__tag">Estructural</span>
+              </a>
+              <a class="config-card" href="acerca.html">
+                <div class="config-card__icon">&#8505;</div>
+                <div class="config-card__title">Acerca del sistema</div>
+                <div class="config-card__desc">Equipo del proyecto e institución.</div>
+              </a>
+              <a class="config-card" href="acerca.html#changelog">
+                <div class="config-card__icon">&#128203;</div>
+                <div class="config-card__title">Versiones</div>
+                <div class="config-card__desc">Historial de cambios de la plataforma.</div>
+              </a>
+            </div>
+          </section>
+
+          <section class="card col-span-6" id="datos-institucionales">
+            <div class="section-header"><div class="section-header__title">Datos institucionales</div></div>
+            <table style="width:100%;">
+              <tbody>
+                <tr><td class="col-text" style="font-weight:600; width:45%;">Dependencia</td><td class="col-text" id="di-nombre"></td></tr>
+                <tr><td class="col-text" style="font-weight:600;">Área</td><td class="col-text" id="di-area"></td></tr>
+                <tr><td class="col-text" style="font-weight:600;">Correo de soporte</td><td class="col-text" id="di-correo"></td></tr>
+                <tr><td class="col-text" style="font-weight:600;">Teléfono</td><td class="col-text" id="di-telefono"></td></tr>
+              </tbody>
+            </table>
+            <p class="text-muted" style="font-size:var(--fs-caption); margin-top:var(--sp-3);">Estos datos vienen de <code>config/config.js</code>. La edición desde esta pantalla se habilitará junto con Supabase.</p>
+          </section>
+
+          <section class="card col-span-6" id="seguridad">
+            <div class="section-header"><div class="section-header__title">Seguridad</div></div>
+            <p class="col-text" style="font-size:var(--fs-body-sm);">Sección estructural, preparada para cuando se conecte Supabase Auth:</p>
+            <ul style="padding-left:1.2em; margin:0;">
+              <li class="col-text" style="font-size:var(--fs-body-sm);">Política de expiración de sesión</li>
+              <li class="col-text" style="font-size:var(--fs-body-sm);">Requisitos mínimos de contraseña</li>
+              <li class="col-text" style="font-size:var(--fs-body-sm);">Autenticación de dos factores (2FA)</li>
+              <li class="col-text" style="font-size:var(--fs-body-sm);">Registro de intentos fallidos de acceso</li>
+            </ul>
+          </section>
+
+          <section class="card col-span-12" id="catalogos">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Catálogos base</div>
+                <div class="section-header__subtitle">Los que usan los módulos activos (CACU y Cáncer de mama sólo usan Entidad federativa)</div>
+              </div>
+            </div>
+            <div id="catalogos-grid" class="config-grid"></div>
+          </section>
+        </div>
+      </div>
+
+      <div class="methodology-footer">
+        <span>SNSP | Inteligencia Digital v<span id="version-tag"></span></span>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="../config/config.js"></script>
+<script src="../auth/auth.js"></script>
+<script src="../components/sidebar.js"></script>
+<script src="../components/topbar.js"></script>
+<script>
+  window.SNSP_AUTH.requireAuth("../index.html");
+  SNSP_renderSidebar("sidebar", "config");
+  SNSP_renderTopbar("topbar", { title: "Configuración", subtitle: "Administración del sistema", rootPath: "../" });
+  document.getElementById("version-tag").textContent = window.SNSP_CONFIG.platform.version;
+
+  const canAdmin = window.SNSP_AUTH.can("administrar_usuarios");
+  document.getElementById("no-access-wrap").style.display = canAdmin ? "none" : "block";
+  document.getElementById("config-content").style.display = canAdmin ? "block" : "none";
+
+  if (canAdmin) {
+    const cfg = window.SNSP_CONFIG;
+    document.getElementById("di-nombre").textContent = cfg.institution.fullName;
+    document.getElementById("di-area").textContent = cfg.institution.area;
+    document.getElementById("di-correo").textContent = cfg.institution.supportEmail;
+    document.getElementById("di-telefono").textContent = cfg.institution.supportPhone;
+
+    const catalogLabels = {
+      anios: "Años", periodos: "Periodos", jurisdicciones: "Jurisdicciones (módulos futuros)",
+      municipios: "Municipios (módulos futuros)", instituciones: "Instituciones (módulos futuros)",
+      gruposEdad: "Grupos de edad (módulos futuros)", sexo: "Sexo (módulos futuros)",
+      tiposIndicador: "Tipos de indicador",
+    };
+    document.getElementById("catalogos-grid").innerHTML = Object.entries(cfg.catalogs).map(([key, values]) => `
+      <div class="config-card is-structural" style="cursor:default;">
+        <div class="config-card__icon">&#128196;</div>
+        <div class="config-card__title">${catalogLabels[key] || key}</div>
+        <div class="config-card__desc">${Array.isArray(values) ? values.length + " valores" : ""}</div>
+      </div>
+    `).join("");
+  }
+</script>
+</body>
+</html>

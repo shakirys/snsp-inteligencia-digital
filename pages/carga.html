@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cargar datos (prototipo) | SNSP Inteligencia Digital</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../styles/tokens.css">
+<link rel="stylesheet" href="../styles/main.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="app-main">
+    <header class="topbar" id="topbar"></header>
+    <main class="app-content">
+
+      <div class="nota-discreta" style="margin-bottom: var(--sp-4); padding: var(--sp-3); background: var(--chart-nota-bg); border-radius: 6px; font-size: var(--fs-body-sm);">
+        <strong>Prototipo local.</strong> Lo que subas aquí vive sólo en la memoria de esta pestaña — se pierde al recargar
+        y no se guarda en ningún servidor. No sustituye, modifica ni alimenta ningún módulo real (CACU, Mama, Morbilidad,
+        Población). Sirve para probar el flujo de carga → mapeo → validación → vista previa antes de decidir si se
+        conecta a un almacenamiento real.
+      </div>
+
+      <div id="carga-sin-permiso" class="empty-state" style="display:none;">
+        <h3>No tienes permiso para cargar información</h3>
+        <p class="text-muted">Tu perfil no incluye el permiso "cargar_informacion". Contacta a un administrador si necesitas acceso.</p>
+      </div>
+
+      <div id="carga-error" class="badge badge-inactive" style="display:none; margin-bottom: var(--sp-3); padding: var(--sp-2) var(--sp-3);"></div>
+
+      <!-- ===== Paso 1: subir archivo ===== -->
+      <section class="card" id="carga-paso-subir" style="padding: var(--sp-4);">
+        <div class="section-header" style="margin-bottom: var(--sp-3);">
+          <div>
+            <div class="section-header__title">1. Sube tu archivo</div>
+            <div class="section-header__subtitle">CSV o Excel (.xlsx). Se procesa en tu navegador, no se envía a ningún servidor.</div>
+          </div>
+        </div>
+        <div class="carga-dropzone" id="carga-dropzone" tabindex="0">
+          <div class="carga-dropzone__icon">&#8593;</div>
+          <div class="carga-dropzone__text">Arrastra tu archivo aquí o haz clic para elegirlo</div>
+          <div class="carga-dropzone__hint">.csv, .xlsx — la primera fila debe tener los encabezados de columna</div>
+        </div>
+        <input type="file" id="carga-input-archivo" accept=".csv,.xlsx,.xls" style="display:none;">
+      </section>
+
+      <!-- ===== Paso 2: mapeo de columnas ===== -->
+      <section id="carga-paso-mapeo" style="display:none;">
+        <div class="card mb-4" style="padding: var(--sp-4);">
+          <div class="section-header" style="margin-bottom: var(--sp-2);">
+            <div>
+              <div class="section-header__title">2. Mapea tus columnas</div>
+              <div class="section-header__subtitle" id="carga-archivo-nombre"></div>
+            </div>
+          </div>
+          <p class="text-muted mb-3" id="carga-archivo-conteo" style="font-size: var(--fs-body-sm);"></p>
+          <p class="text-muted mb-3" style="font-size: var(--fs-caption);">
+            Para cada columna, indica su papel: <strong>Dimensión</strong> si es una categoría por la que se puede
+            agrupar (municipio, resultado, padecimiento…), <strong>Medida</strong> si es un número que se debe sumar,
+            o <strong>Ignorar</strong>. Si marcas dos dimensiones, la segunda se usará como filtro en la vista previa.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Columna</th><th>Tipo detectado</th><th>Muestra de valores</th><th>Vacíos</th><th>Papel</th></tr></thead>
+              <tbody id="carga-mapeo-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card mb-4" style="padding: var(--sp-4);">
+          <div class="section-header" style="margin-bottom: var(--sp-2);">
+            <div>
+              <div class="section-header__title">Vista previa cruda</div>
+              <div class="section-header__subtitle">Primeras 8 filas, tal como vienen en el archivo</div>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead id="carga-preview-head"></thead>
+              <tbody id="carga-preview-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="flex gap-2">
+          <button class="btn btn-primary" id="btn-carga-validar">Validar y ver vista previa</button>
+          <button class="btn btn-ghost" id="btn-carga-otro-archivo-mapeo">Elegir otro archivo</button>
+        </div>
+      </section>
+
+      <!-- ===== Paso 3: informe de calidad + resultado ===== -->
+      <section id="carga-paso-resultado" style="display:none;">
+        <div class="card mb-4" style="padding: var(--sp-4);">
+          <div class="section-header" style="margin-bottom: var(--sp-2);">
+            <div>
+              <div class="section-header__title">3. Informe de calidad</div>
+              <div class="section-header__subtitle">Generado al vuelo, igual que el informe de las bases oficiales</div>
+            </div>
+          </div>
+          <ul class="carga-informe-list" id="carga-informe-resumen"></ul>
+          <p class="text-muted mt-2 mb-1" style="font-size: var(--fs-body-sm);"><strong>Avisos:</strong></p>
+          <ul class="carga-informe-list carga-informe-list--avisos" id="carga-informe-avisos"></ul>
+        </div>
+
+        <div id="carga-resultado-vacio" class="empty-state" style="display:none;">
+          <h3>Falta marcar al menos una dimensión</h3>
+          <p class="text-muted">Regresa al mapeo y marca al menos una columna como "Dimensión (categoría)" para poder agrupar los datos.</p>
+        </div>
+
+        <div id="carga-resultado-panels">
+          <div class="indicator-grid mb-4" id="carga-kpi-grid"></div>
+
+          <div id="carga-filtro-wrap" class="card mb-4" style="display:none; padding: var(--sp-4);">
+            <div class="field" style="max-width: 320px;">
+              <label id="carga-filtro-label"></label>
+              <select id="carga-filtro-valor"></select>
+            </div>
+          </div>
+
+          <div class="panel-grid">
+            <section class="card col-span-12">
+              <div class="section-header">
+                <div>
+                  <div class="section-header__title">4. Vista previa de gráfica</div>
+                  <div class="section-header__subtitle">Generada con el mismo estándar de visualización de la plataforma</div>
+                </div>
+              </div>
+              <div style="height:420px;"><canvas id="carga-chart"></canvas></div>
+            </section>
+
+            <section class="card col-span-12">
+              <div class="section-header">
+                <div>
+                  <div class="section-header__title">Tabla resumen</div>
+                  <div class="section-header__subtitle">Categorías ordenadas de mayor a menor</div>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>#</th><th>Categoría</th><th>Valor</th></tr></thead>
+                  <tbody id="carga-tabla-body"></tbody>
+                </table>
+              </div>
+              <p class="text-muted mt-2" id="carga-tabla-count" style="font-size:var(--fs-caption);"></p>
+            </section>
+          </div>
+        </div>
+
+        <div class="flex gap-2 mt-4">
+          <button class="btn btn-secondary" id="btn-carga-cambiar-mapeo">Cambiar mapeo</button>
+          <button class="btn btn-ghost" id="btn-carga-otro-archivo-resultado">Cargar otro archivo</button>
+        </div>
+      </section>
+
+      <div class="methodology-footer">
+        <span>Prototipo local — no persistente</span>
+        <span>SNSP | Inteligencia Digital v<span id="version-tag-module"></span></span>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="../config/config.js"></script>
+<script src="../auth/auth.js"></script>
+<script src="../components/sidebar.js"></script>
+<script src="../components/topbar.js"></script>
+<script src="../components/indicatorCard.js"></script>
+<script src="../components/charts.js"></script>
+<script src="../services/cargaDataService.js"></script>
+<script src="../modules/cargaModuleView.js"></script>
+<script>
+  SNSP_renderCargaModulePage({});
+</script>
+</body>
+</html>

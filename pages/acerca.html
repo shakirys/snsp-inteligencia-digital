@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Acerca del sistema | SNSP Inteligencia Digital</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../styles/tokens.css">
+<link rel="stylesheet" href="../styles/main.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="app-main">
+    <header class="topbar" id="topbar"></header>
+    <main class="app-content">
+
+      <div class="panel-grid">
+        <section class="card col-span-6">
+          <div class="section-header"><div class="section-header__title">Equipo del Proyecto</div></div>
+          <div id="equipo-list"></div>
+        </section>
+
+        <section class="card col-span-6">
+          <div class="section-header"><div class="section-header__title">Institución</div></div>
+          <table style="width:100%;">
+            <tbody>
+              <tr><td class="col-text" style="font-weight:600; width:45%;">Dependencia</td><td class="col-text" id="inst-nombre"></td></tr>
+              <tr><td class="col-text" style="font-weight:600;">Área</td><td class="col-text" id="inst-area"></td></tr>
+              <tr><td class="col-text" style="font-weight:600;">Contacto</td><td class="col-text" id="inst-correo"></td></tr>
+              <tr><td class="col-text" style="font-weight:600;">Versión actual</td><td class="col-text"><span class="badge badge-demo" id="inst-version"></span></td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="card col-span-12" id="changelog">
+          <div class="section-header">
+            <div>
+              <div class="section-header__title">Historial de versiones</div>
+              <div class="section-header__subtitle">Cada versión nueva se agrega aquí automáticamente desde <code>config/config.js</code></div>
+            </div>
+          </div>
+          <div id="changelog-list"></div>
+        </section>
+
+        <section class="card col-span-12">
+          <div class="section-header"><div class="section-header__title">Créditos</div></div>
+          <p class="col-text" style="font-size:var(--fs-body-sm);">Los mapas vectoriales de México y Querétaro de la pantalla de inicio provienen del paquete de código abierto <code>@svg-maps/mexico</code> (licencia CC-BY-4.0). Los logotipos de la Secretaría de Salud y del SNSP son los oficiales proporcionados por la institución.</p>
+        </section>
+      </div>
+
+      <div class="methodology-footer">
+        <span>SNSP | Inteligencia Digital v<span id="version-tag"></span></span>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="../config/config.js"></script>
+<script src="../auth/auth.js"></script>
+<script src="../components/sidebar.js"></script>
+<script src="../components/topbar.js"></script>
+<script>
+  window.SNSP_AUTH.requireAuth("../index.html");
+  SNSP_renderSidebar("sidebar", "acerca");
+  SNSP_renderTopbar("topbar", { title: "Acerca del sistema", subtitle: "Configuración del sistema", rootPath: "../" });
+
+  const cfg = window.SNSP_CONFIG;
+  document.getElementById("version-tag").textContent = cfg.platform.version;
+  document.getElementById("inst-version").textContent = "v" + cfg.platform.version;
+  document.getElementById("inst-nombre").textContent = cfg.institution.fullName;
+  document.getElementById("inst-area").textContent = cfg.institution.area;
+  document.getElementById("inst-correo").textContent = cfg.institution.supportEmail;
+
+  document.getElementById("equipo-list").innerHTML = cfg.institution.equipo.map((p) => `
+    <div style="padding:var(--sp-3) 0; border-bottom:1px solid var(--border-subtle);">
+      <div style="font-weight:600;">${p.nombre}</div>
+      <div class="text-muted" style="font-size:var(--fs-body-sm);">${p.cargo}</div>
+    </div>
+  `).join("");
+
+  document.getElementById("changelog-list").innerHTML = (cfg.changelog || []).map((c) => `
+    <div style="padding:var(--sp-4) 0; border-bottom:1px solid var(--border-subtle);">
+      <div style="display:flex; align-items:center; gap:var(--sp-3); margin-bottom:var(--sp-2);">
+        <span class="badge badge-role">v${c.version}</span>
+        <span class="text-muted" style="font-size:var(--fs-body-sm);">${new Date(c.fecha).toLocaleDateString("es-MX", { year: "numeric", month: "long", day: "numeric" })}</span>
+      </div>
+      <ul style="padding-left:1.2em; margin:0;">
+        ${c.notas.map((n) => `<li class="col-text" style="font-size:var(--fs-body-sm);">${n}</li>`).join("")}
+      </ul>
+    </div>
+  `).join("");
+</script>
+</body>
+</html>

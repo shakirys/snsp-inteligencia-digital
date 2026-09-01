@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Apartado metodológico | SNSP Inteligencia Digital</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../styles/tokens.css">
+<link rel="stylesheet" href="../styles/main.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="app-main">
+    <header class="topbar" id="topbar"></header>
+    <main class="app-content">
+      <div class="card" style="max-width:920px;">
+        <h2 style="margin-bottom:var(--sp-4)">Apartado metodológico</h2>
+
+        <h3 style="font-size:var(--fs-body-lg); margin-bottom:var(--sp-2);">Fuentes de información</h3>
+        <table style="width:100%; margin-bottom:var(--sp-5);">
+          <thead><tr><th class="col-text">Base</th><th class="col-text">Módulo</th><th class="col-text">Registros</th><th class="col-text">Columnas originales</th></tr></thead>
+          <tbody>
+            <tr><td class="col-text">casos_confirmados_CaCu_2025.csv</td><td class="col-text">CACU</td><td class="col-text">607</td><td class="col-text">entidad, resultado_histopatologico (código), plan_tratamiento</td></tr>
+            <tr><td class="col-text">citologias_2025.csv</td><td class="col-text">CACU</td><td class="col-text">246,953</td><td class="col-text">entidad, resultado_citologico</td></tr>
+            <tr><td class="col-text">CITOLOGIA_BASE_LIQUIDA_2025.csv</td><td class="col-text">CACU</td><td class="col-text">48,247</td><td class="col-text">entidad, resultado_citologico</td></tr>
+            <tr><td class="col-text">PCR_2025.csv</td><td class="col-text">CACU</td><td class="col-text">378,141</td><td class="col-text">entidad, resultado</td></tr>
+            <tr><td class="col-text">casos_confirmados_CaMa_2025.csv</td><td class="col-text">Cáncer de mama</td><td class="col-text">2,388</td><td class="col-text">entidad, resultado_histopatologico, plan_tratamiento</td></tr>
+            <tr><td class="col-text">mastografias_2025.csv</td><td class="col-text">Cáncer de mama</td><td class="col-text">537,218</td><td class="col-text">entidad, resultado</td></tr>
+          </tbody>
+        </table>
+        <p class="col-text" style="margin-bottom:var(--sp-5);">
+          Año de referencia: <strong>2025</strong>. Fecha de carga a la plataforma: <strong>20/07/2026</strong>.
+          Las bases originales, sin modificar, se conservan en <code>data/raw/</code>.
+        </p>
+
+        <h3 style="font-size:var(--fs-body-lg); margin-bottom:var(--sp-2);">Variables utilizadas y transformaciones aplicadas</h3>
+        <ul class="col-text" style="margin-bottom:var(--sp-5); padding-left:1.2em; list-style:disc;">
+          <li><strong>entidad</strong>: estandarizada a un catálogo único de 32 entidades federativas (se corrigen variantes de acentuación entre bases, p. ej. "Michoacan" → "Michoacán").</li>
+          <li><strong>resultado_histopatologico</strong> (CACU): viene como código numérico (6, 7, 8, 9, 10, 11, 13) sin catálogo de equivalencias adjunto. Se muestra como "Código N" hasta recibir el catálogo oficial.</li>
+          <li><strong>resultado_histopatologico</strong> (Mama): viene en texto; se usa tal cual (10 categorías).</li>
+          <li><strong>plan_tratamiento</strong> (Mama): se corrige la errata de captura "Primaro" → "Primario"; el dato original no se altera, sólo su presentación.</li>
+          <li><strong>resultado_citologico</strong> (citologías y citología base líquida): ambas bases usan las mismas 12 categorías Bethesda con variantes menores de redacción (acentos, "sin dato" vs. "inadecuado"); se unifican a un catálogo común para poder compararlas, pero se presentan como pruebas independientes.</li>
+        </ul>
+
+        <h3 style="font-size:var(--fs-body-lg); margin-bottom:var(--sp-2);">Fórmulas de los indicadores implementados</h3>
+        <table style="width:100%; margin-bottom:var(--sp-5);">
+          <tbody>
+            <tr><td class="col-text" style="width:45%; font-weight:600;">Total de casos / pruebas</td><td class="col-text">Conteo de registros de la base (o del subconjunto filtrado por entidad).</td></tr>
+            <tr><td class="col-text" style="font-weight:600;">Distribución por entidad / categoría</td><td class="col-text">Conteo de registros agrupados por el valor de la columna correspondiente.</td></tr>
+            <tr><td class="col-text" style="font-weight:600;">Porcentaje por categoría</td><td class="col-text">(Conteo de la categoría ÷ total de registros del subconjunto) × 100.</td></tr>
+          </tbody>
+        </table>
+
+        <h3 style="font-size:var(--fs-body-lg); margin-bottom:var(--sp-2);">Nivel de desagregación disponible</h3>
+        <p class="col-text" style="margin-bottom:var(--sp-5);">Entidad federativa únicamente. No hay año, periodo, municipio, jurisdicción, institución, unidad médica, CLUES, edad ni sexo en ninguna de las 6 bases.</p>
+
+        <h3 style="font-size:var(--fs-body-lg); margin-bottom:var(--sp-2);">Limitaciones</h3>
+        <ul class="col-text" style="margin-bottom:var(--sp-5); padding-left:1.2em; list-style:disc;">
+          <li>No es posible calcular incidencia, mortalidad ni cobertura de tamizaje: no hay denominador poblacional ni fecha de referencia.</li>
+          <li>No es posible calcular tendencias temporales: no hay columna de año o fecha por registro.</li>
+          <li>No hay folio/ID de paciente, por lo que no se pueden vincular registros de una misma persona entre citología, PCR y caso confirmado; los indicadores son agregados independientes por fuente.</li>
+          <li>El catálogo de códigos de <code>resultado_histopatologico</code> de CACU no fue proporcionado; ese desglose se muestra únicamente por código numérico.</li>
+        </ul>
+        <p class="col-text" style="font-weight:600;">
+          Advertencia: estas bases son nacionales y no contienen necesariamente información municipal, jurisdiccional o por unidad médica, aun cuando la plataforma esté operada por SNSP Querétaro.
+        </p>
+
+        <hr style="border:none; border-top:1px solid var(--border-subtle); margin:var(--sp-5) 0;">
+
+        <h2 style="margin-bottom:var(--sp-4)">Morbilidad — estado de Querétaro (prueba funcional)</h2>
+
+        <h3 style="font-size:var(--fs-body-lg); margin-bottom:var(--sp-2);">Fuentes de información</h3>
+        <table style="width:100%; margin-bottom:var(--sp-5);">
+          <thead><tr><th class="col-text">Base</th><th class="col-text">Registros</th><th class="col-text">Columnas usadas</th></tr></thead>
+          <tbody>
+            <tr><td class="col-text">CUBOS_DE_MORBILIDAD_2025_CON_CUBOS.xlsx (hoja "Sheet 1")</td><td class="col-text">201,047</td><td class="col-text">Año, Entidad (única: Querétaro), CLUES, Unidad médica, Institución, Jurisdicción, Municipio, Epi-Clave, Mes, Padecimiento (con CIE-10 entre paréntesis), Casos confirmados</td></tr>
+            <tr><td class="col-text">ESTABLECIMIENTO_SALUD_202601.xlsx (hoja "CLUES_202601", sólo Querétaro)</td><td class="col-text">862</td><td class="col-text">CLUES, nombre oficial de la unidad, tipo de establecimiento, nivel de atención, estatus de operación — complementa por CLUES, sin duplicar casos</td></tr>
+          </tbody>
+        </table>
+        <p class="col-text" style="margin-bottom:var(--sp-5);">
+          Años de referencia: <strong>2024, 2025 y 2026</strong> (los tres años presentes en la base). Fecha de carga a la plataforma: <strong>22/07/2026</strong>.
+          La base original, sin modificar, se conserva en <code>data/raw/</code>. <strong>Esta base es exclusivamente del estado de Querétaro</strong>: no se comparó ni se combinó con ninguna fuente nacional.
+        </p>
+
+        <h3 style="font-size:var(--fs-body-lg); margin-bottom:var(--sp-2);">Variables utilizadas y transformaciones aplicadas</h3>
+        <ul class="col-text" style="margin-bottom:var(--sp-5); padding-left:1.2em; list-style:disc;">
+          <li><strong>Municipio, Jurisdicción, Institución</strong>: se corrige acentuación y capitalización contra un catálogo fijo de los 18 municipios y 4 jurisdicciones de Querétaro (misma lógica que la corrección de "entidad" en CACU/Mama); ningún valor nuevo se agrega.</li>
+          <li><strong>Código CIE-10</strong>: se extrae del texto entre paréntesis al final de "Padecimiento" (p. ej. de <code>"Tumor maligno de la mama(C50)"</code> se obtiene <code>C50</code>). Si el padecimiento no trae paréntesis, el campo queda vacío — no se inventa.</li>
+          <li><strong>Accesos rápidos C50, C53, D06, N87</strong>: se activan sólo si el código aparece realmente en el catálogo de 160 padecimientos. <strong>D05 no está presente en esta base</strong> y se muestra deshabilitado.</li>
+          <li><strong>CLUES</strong>: se enriquece con nombre oficial, tipo de establecimiento, nivel de atención y estatus de operación desde ESTABLECIMIENTO_SALUD_202601.xlsx, mediante una relación 1 a 1 por clave CLUES (no se duplican casos).</li>
+        </ul>
+
+        <h3 style="font-size:var(--fs-body-lg); margin-bottom:var(--sp-2);">Fórmulas de los indicadores implementados</h3>
+        <table style="width:100%; margin-bottom:var(--sp-5);">
+          <tbody>
+            <tr><td class="col-text" style="width:45%; font-weight:600;">Total de casos</td><td class="col-text">Suma de "Casos confirmados" del/de los padecimiento(s) seleccionado(s), con los filtros aplicados.</td></tr>
+            <tr><td class="col-text" style="font-weight:600;">Casos por municipio / jurisdicción / institución / mes-año / CLUES</td><td class="col-text">Suma de "Casos confirmados" agrupada por esa columna, sobre la selección y filtros vigentes.</td></tr>
+          </tbody>
+        </table>
+
+        <h3 style="font-size:var(--fs-body-lg); margin-bottom:var(--sp-2);">Nivel de desagregación disponible</h3>
+        <p class="col-text" style="margin-bottom:var(--sp-5);">Año, municipio, jurisdicción sanitaria, institución, CLUES/unidad médica y mes. <strong>No hay sexo ni grupo de edad</strong> en esta base — se muestran explícitamente como "Dato pendiente de carga".</p>
+
+        <h3 style="font-size:var(--fs-body-lg); margin-bottom:var(--sp-2);">Limitaciones</h3>
+        <ul class="col-text" style="margin-bottom:var(--sp-5); padding-left:1.2em; list-style:disc;">
+          <li>No es posible calcular incidencia, tasas ni cobertura: no hay un padrón poblacional validado todavía. El archivo de Microregionalización se identificó como candidato para esto, pero no se usa en esta prueba funcional.</li>
+          <li>No hay sexo ni grupo de edad en la fuente; esos desgloses no se calculan ni se infieren.</li>
+          <li>La base es exclusivamente estatal (Querétaro). No incluye comparativo con otras entidades ni vista nacional — la arquitectura queda preparada para agregarlo cuando llegue una base nacional equivalente.</li>
+          <li>"Epi-Clave" es un código epidemiológico interno (SUIVE), distinto del CIE-10; el CIE-10 mostrado se extrae del texto de "Padecimiento" y puede representar un rango (p. ej. "N87.0-N87.1"), no siempre un código único.</li>
+        </ul>
+      </div>
+    </main>
+  </div>
+</div>
+<script src="../config/config.js"></script>
+<script src="../auth/auth.js"></script>
+<script src="../components/sidebar.js"></script>
+<script src="../components/topbar.js"></script>
+<script>
+  window.SNSP_AUTH.requireAuth("../index.html");
+  SNSP_renderSidebar("sidebar", "");
+  SNSP_renderTopbar("topbar", { title: "Apartado metodológico", rootPath: "../" });
+</script>
+</body>
+</html>

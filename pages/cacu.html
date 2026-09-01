@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cáncer cervicouterino (CACU) | SNSP Inteligencia Digital</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../styles/tokens.css">
+<link rel="stylesheet" href="../styles/main.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="app-main">
+    <header class="topbar" id="topbar"></header>
+    <main class="app-content">
+
+      <div class="filter-bar" id="filter-bar"></div>
+      <p class="text-muted" style="font-size:var(--fs-caption); margin:-6px 0 10px;">Filtros no disponibles en esta fuente: año, periodo, jurisdicción, municipio, institución, grupo de edad, sexo, tipo de estudio.</p>
+
+      <div class="flex justify-between items-center mb-2">
+        <span class="badge badge-demo">Datos oficiales 2025 · Fuente nacional</span>
+        <div class="flex gap-2">
+          <button class="btn btn-secondary btn-sm" id="btn-export-pdf">Exportar PDF (pendiente)</button>
+          <button class="btn btn-secondary btn-sm" id="btn-export-xlsx">Exportar Excel (pendiente)</button>
+        </div>
+      </div>
+
+      <div class="indicator-grid" id="kpi-grid"></div>
+
+      <div id="empty-state-wrap" style="display:none;">
+        <div class="card empty-state">
+          <h3>Sin registros para los filtros seleccionados</h3>
+          <p class="pending-data">Dato pendiente de carga</p>
+        </div>
+      </div>
+
+      <div id="data-panels">
+        <div class="panel-grid">
+          <section class="card col-span-12">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Casos confirmados por entidad</div>
+                <div class="section-header__subtitle">Top 15 entidades con más casos registrados</div>
+              </div>
+            </div>
+            <div style="height:480px;"><canvas id="chart-entidad"></canvas></div>
+          </section>
+
+          <section class="card col-span-6">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Mapa nacional</div>
+                <div class="section-header__subtitle">Casos confirmados por entidad federativa</div>
+              </div>
+            </div>
+            <div class="map-wrap">
+              <div class="map-svg-box" id="map-svg"></div>
+              <div class="map-legend" id="map-legend"></div>
+            </div>
+          </section>
+
+          <section class="card col-span-6">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Plan de tratamiento</div>
+                <div class="section-header__subtitle">Distribución de casos confirmados</div>
+              </div>
+            </div>
+            <div style="height:320px;"><canvas id="chart-plan"></canvas></div>
+          </section>
+
+          <section class="card col-span-12">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Resultado histopatológico</div>
+                <div class="section-header__subtitle">Distribución de casos confirmados</div>
+              </div>
+            </div>
+            <p id="codigo-pendiente-note" class="pending-data" style="display:none; font-size:var(--fs-caption); margin-bottom:6px;">
+              Esta base identifica el resultado histopatológico con un código numérico y no incluye un catálogo de equivalencias. Se muestra como "Código N" hasta que se proporcione el catálogo oficial — ver Metodología.
+            </p>
+            <div style="height:340px;"><canvas id="chart-resultado"></canvas></div>
+          </section>
+
+          <section class="card col-span-12">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Citología convencional</div>
+                <div class="section-header__subtitle">Distribución de resultados citológicos</div>
+              </div>
+            </div>
+            <div style="height:480px;"><canvas id="chart-cit-conv"></canvas></div>
+          </section>
+
+          <section class="card col-span-12">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Citología en base líquida</div>
+                <div class="section-header__subtitle">Distribución de resultados citológicos</div>
+              </div>
+            </div>
+            <div style="height:480px;"><canvas id="chart-cit-bl"></canvas></div>
+          </section>
+
+          <section class="card col-span-6">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">PCR para VPH</div>
+                <div class="section-header__subtitle">Distribución de resultados</div>
+              </div>
+            </div>
+            <div style="height:320px;"><canvas id="chart-pcr"></canvas></div>
+          </section>
+
+          <section class="card col-span-6">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Ranking de entidades</div>
+                <div class="section-header__subtitle">Por casos confirmados, mayor a menor</div>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>#</th><th>Entidad</th><th>Casos</th><th>% del total</th></tr></thead>
+                <tbody id="ranking-body"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div class="methodology-footer">
+        <span>Fuente: <span id="source-label"></span> · <span id="table-count"></span> · <a href="metodologia.html">Ver apartado metodológico</a></span>
+        <span>SNSP | Inteligencia Digital v<span id="version-tag-module"></span></span>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="../config/config.js"></script>
+<script src="../auth/auth.js"></script>
+<script src="../services/dataService.js"></script>
+<script src="../services/realDataService.js"></script>
+<script src="../data/real/indicadores_2025.js"></script>
+<script src="../components/sidebar.js"></script>
+<script src="../components/topbar.js"></script>
+<script src="../components/indicatorCard.js"></script>
+<script src="../components/charts.js"></script>
+<script src="../components/filterBar.js"></script>
+<script src="../components/mapNacional.js"></script>
+<script src="../modules/categoricalModuleView.js"></script>
+<script>
+  SNSP_renderCategoricalModulePage({
+    moduleId: "cacu",
+    title: "Cáncer cervicouterino (CACU)",
+    sourceLabel: "Bases oficiales 2025: casos confirmados CACU, citologías, citología base líquida y PCR VPH (nacional)",
+  });
+</script>
+</body>
+</html>
