@@ -101,7 +101,7 @@ if (context) {
 }
 
 // ---- Simular login ----
-const loginResult = window.SNSP_AUTH.login("osvaldo.bobadilla@snsp.qro.gob.mx", "SNSP2025");
+const loginResult = window.SNSP_AUTH.login("soraya.sanchez@snsp.qro.gob.mx", "SNSP2025");
 console.assert(loginResult && loginResult.ok !== false, "Login debería funcionar con el usuario demo");
 console.log("Login:", JSON.stringify(loginResult).slice(0, 120));
 

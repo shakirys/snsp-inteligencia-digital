@@ -817,3 +817,126 @@ th.sortable:hover { color: var(--c-vino); }
 .carga-informe-list { margin: 0; padding-left: 1.1em; font-size: var(--fs-body-sm); }
 .carga-informe-list li { margin-bottom: 4px; }
 .carga-informe-list--avisos li { color: var(--c-verde-claro); }
+
+/* ---- Filtro "Año (comparar)": selector múltiple de chips, usado sólo
+   cuando la columna marcada como Filtro se detecta como Año; el resto de
+   los filtros siguen usando el <select> sencillo de arriba sin cambios. ---- */
+.carga-anio-field { position: relative; }
+.carga-anio-multiselect { position: relative; }
+.carga-anio-chips {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  min-height: 22px;
+  margin-bottom: 4px;
+}
+.carga-anio-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: var(--fs-caption); font-weight: 600;
+  padding: 3px 6px 3px 10px;
+  border-radius: 999px;
+  background: var(--c-vino); color: var(--text-inverse);
+}
+.carga-anio-chip button {
+  border: none; background: transparent; color: var(--text-inverse);
+  cursor: pointer; font-size: 0.95em; line-height: 1; padding: 0 2px;
+  opacity: 0.85;
+}
+.carga-anio-chip button:hover { opacity: 1; }
+.carga-anio-toggle {
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: var(--fs-body-sm);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
+}
+.carga-anio-toggle:hover { border-color: var(--c-vino); color: var(--c-vino); }
+.carga-anio-menu {
+  position: absolute; z-index: 15; top: calc(100% + 4px); left: 0; right: 0;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-card);
+  padding: var(--sp-2);
+  max-height: 220px; overflow-y: auto;
+}
+.carga-anio-opcion {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: 4px var(--sp-2);
+  font-size: var(--fs-body-sm); font-weight: 400; color: var(--text-primary);
+  cursor: pointer; border-radius: 4px;
+}
+.carga-anio-opcion:hover { background: var(--bg-sunken); }
+.carga-anio-opcion input { accent-color: var(--c-vino); }
+
+/* ---- Filtro con buscador de texto (v2.8.0-prototipo): reutilizable para
+   cualquier columna con muchos valores únicos (Padecimiento, Unidad
+   médica, etc. — ver UMBRAL_FILTRO_BUSCABLE en cargaModuleView.js). El
+   <select> real que guarda el valor elegido queda oculto (hidden); estos
+   estilos son sólo para el buscador que lo controla. ---- */
+.carga-filtro-buscable-field {
+  position: relative;
+  /* El botón usa overflow:hidden + ellipsis para no desbordar con valores
+     largos (p. ej. nombres de Padecimiento), lo que le quita al elemento
+     su ancho mínimo natural basado en el texto — sin este min-width, el
+     campo se encoge junto a los demás filtros de la fila hasta quedar
+     casi invisible. */
+  min-width: 200px;
+}
+.carga-filtro-buscable { position: relative; }
+.carga-filtro-buscable-toggle {
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: var(--fs-body-sm);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.carga-filtro-buscable-toggle:hover { border-color: var(--c-vino); color: var(--c-vino); }
+.carga-filtro-buscable-toggle.is-activo {
+  border-color: var(--c-vino);
+  color: var(--c-vino);
+  font-weight: 600;
+  background: rgba(97, 18, 50, 0.04);
+}
+.carga-filtro-buscable-menu {
+  position: absolute; z-index: 15; top: calc(100% + 4px); left: 0; right: 0;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-card);
+  padding: var(--sp-2);
+}
+.carga-filtro-buscable-input {
+  width: 100%;
+  margin-bottom: var(--sp-2);
+}
+.carga-filtro-buscable-opciones {
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex; flex-direction: column;
+}
+.carga-filtro-buscable-opcion {
+  display: block; width: 100%; text-align: left;
+  padding: 6px var(--sp-2);
+  font-family: var(--font-body);
+  font-size: var(--fs-body-sm); font-weight: 400; color: var(--text-primary);
+  background: transparent; border: none; border-radius: 4px;
+  cursor: pointer;
+}
+.carga-filtro-buscable-opcion:hover { background: var(--bg-sunken); }
+.carga-filtro-buscable-opcion.is-selected { background: var(--c-vino); color: var(--text-inverse); font-weight: 600; }
+.carga-filtro-buscable-vacio {
+  margin: 0; padding: 6px var(--sp-2);
+  font-size: var(--fs-body-sm); color: var(--text-muted); font-style: italic;
+}

@@ -93,19 +93,19 @@
       lastAccess: null,
       deletedAt: null,
     },
-{
-  id: "u3",
-  nombre: "Mtro. Luis Iván Borja González",
-  cargo: "Líder de Inteligencia e Información",
-  email: "ivanborja.snsp@gmail.com",
-  role: "administrador",
-  status: "activo",
-  password: DEFAULT_PASSWORD,
-  createdAt: "2026-09-01T00:00:00.000Z",
-  updatedAt: "2026-09-01T00:00:00.000Z",
-  lastAccess: null,
-  deletedAt: null,
-},    
+    {
+      id: "u3",
+      nombre: "Mtro. Luis Iván Borja González",
+      cargo: "Líder de Inteligencia e Información",
+      email: "ivanborja.snsp@gmail.com",
+      role: "administrador",
+      status: "activo",
+      password: DEFAULT_PASSWORD,
+      createdAt: "2026-09-01T00:00:00.000Z",
+      updatedAt: "2026-09-01T00:00:00.000Z",
+      lastAccess: null,
+      deletedAt: null,
+    },
   ];
 
   const SESSION_KEY = "snsp_session_demo";

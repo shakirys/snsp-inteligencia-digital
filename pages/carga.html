@@ -9,6 +9,8 @@
 <link rel="stylesheet" href="../styles/main.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
 
@@ -60,9 +62,17 @@
           <p class="text-muted mb-3" id="carga-archivo-conteo" style="font-size: var(--fs-body-sm);"></p>
           <p class="text-muted mb-3" style="font-size: var(--fs-caption);">
             Para cada columna, indica su papel: <strong>Dimensión</strong> si es una categoría por la que se puede
-            agrupar (municipio, resultado, padecimiento…), <strong>Medida</strong> si es un número que se debe sumar,
-            o <strong>Ignorar</strong>. Si marcas dos dimensiones, la segunda se usará como filtro en la vista previa.
+            agrupar la gráfica (municipio, padecimiento…), <strong>Medida</strong> si es un número que se debe sumar,
+            <strong>Filtro</strong> si sirve para acotar la vista previa (año, institución, sexo…), o
+            <strong>Ignorar</strong>. Los tres papeles son independientes entre sí — si marcas varias columnas como
+            Dimensión o como Medida, en el siguiente paso eliges cuál usa la gráfica; si marcas varias como Filtro,
+            todas aparecen a la vez y se combinan entre sí. Las columnas numéricas que se ven como año, semana, mes
+            o clave se marcan "posible código" y no se proponen como Medida por defecto (puedes cambiarlo si hace falta).
           </p>
+          <div class="flex gap-2 mb-3">
+            <button type="button" class="btn btn-ghost" id="btn-carga-mapeo-ignorar-todo">Marcar todas como Ignorar</button>
+            <span class="text-muted" style="font-size:var(--fs-caption); align-self:center;">Después puedes cambiar individualmente las columnas que necesites a Dimensión, Medida o Filtro.</span>
+          </div>
           <div class="table-wrap">
             <table>
               <thead><tr><th>Columna</th><th>Tipo detectado</th><th>Muestra de valores</th><th>Vacíos</th><th>Papel</th></tr></thead>
@@ -114,10 +124,58 @@
         <div id="carga-resultado-panels">
           <div class="indicator-grid mb-4" id="carga-kpi-grid"></div>
 
-          <div id="carga-filtro-wrap" class="card mb-4" style="display:none; padding: var(--sp-4);">
-            <div class="field" style="max-width: 320px;">
-              <label id="carga-filtro-label"></label>
-              <select id="carga-filtro-valor"></select>
+          <div id="carga-poblacion-wrap" class="card mb-4" style="padding: var(--sp-4);">
+            <div class="section-header" style="margin-bottom: var(--sp-2);">
+              <div>
+                <div class="section-header__title" style="font-size:var(--fs-body-sm);">Base de población (opcional)</div>
+                <div class="section-header__subtitle">Súbela para poder analizar Población o Tasa (por 100,000 habitantes) — se relaciona con tu archivo por Año + Municipio + Grupo de edad</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-3" style="flex-wrap:wrap;">
+              <input type="file" id="carga-input-poblacion" accept=".csv,.xlsx,.xls">
+              <span class="text-muted" id="carga-poblacion-estado" style="font-size:var(--fs-body-sm);"></span>
+            </div>
+            <div class="flex gap-3 mt-3" id="carga-medida-analisis-grid" style="flex-wrap:wrap; display:none;">
+              <div class="field" style="max-width: 280px;">
+                <label for="carga-select-medida-analisis">Analizar</label>
+                <select id="carga-select-medida-analisis">
+                  <option value="casos">Casos</option>
+                  <option value="poblacion">Población</option>
+                  <option value="tasa">Tasa (por 100,000 habitantes)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div id="carga-config-wrap" class="card mb-4" style="display:none; padding: var(--sp-4);">
+            <div class="section-header" style="margin-bottom: var(--sp-2);">
+              <div>
+                <div class="section-header__title" style="font-size:var(--fs-body-sm);">Configuración de la gráfica</div>
+                <div class="section-header__subtitle">Marcaste más de una columna candidata — elige cuál se usa</div>
+              </div>
+            </div>
+            <div class="flex gap-3" id="carga-config-grid" style="flex-wrap:wrap;"></div>
+          </div>
+
+          <div id="carga-filtros-wrap" class="card mb-4" style="display:none; padding: var(--sp-4);">
+            <div class="section-header" style="margin-bottom: var(--sp-2);">
+              <div>
+                <div class="section-header__title" style="font-size:var(--fs-body-sm);">Filtros</div>
+                <div class="section-header__subtitle">Se combinan entre sí — "Todos" no acota esa columna</div>
+              </div>
+            </div>
+            <div class="flex gap-3" id="carga-filtros-grid" style="flex-wrap:wrap;"></div>
+          </div>
+
+          <div class="card mb-4 flex items-center gap-2" style="padding: var(--sp-3) var(--sp-4);">
+            <div class="field" style="max-width: 220px;">
+              <label for="carga-topn">Categorías a mostrar</label>
+              <select id="carga-topn">
+                <option value="10">Top 10</option>
+                <option value="15" selected>Top 15</option>
+                <option value="20">Top 20</option>
+                <option value="todas">Todas</option>
+              </select>
             </div>
           </div>
 
@@ -129,7 +187,8 @@
                   <div class="section-header__subtitle">Generada con el mismo estándar de visualización de la plataforma</div>
                 </div>
               </div>
-              <div style="height:420px;"><canvas id="carga-chart"></canvas></div>
+              <div id="carga-chart-titulo-corto" class="section-header__title" style="display:none; margin-bottom:var(--sp-2);"></div>
+              <div id="carga-chart-wrap" style="height:420px;"><canvas id="carga-chart"></canvas></div>
             </section>
 
             <section class="card col-span-12">
@@ -141,7 +200,7 @@
               </div>
               <div class="table-wrap">
                 <table>
-                  <thead><tr><th>#</th><th>Categoría</th><th>Valor</th></tr></thead>
+                  <thead id="carga-tabla-head"><tr><th>#</th><th>Categoría</th><th>Valor</th></tr></thead>
                   <tbody id="carga-tabla-body"></tbody>
                 </table>
               </div>
@@ -152,6 +211,7 @@
 
         <div class="flex gap-2 mt-4">
           <button class="btn btn-secondary" id="btn-carga-cambiar-mapeo">Cambiar mapeo</button>
+          <button class="btn btn-secondary" id="btn-carga-exportar-pdf">Exportar a PDF</button>
           <button class="btn btn-ghost" id="btn-carga-otro-archivo-resultado">Cargar otro archivo</button>
         </div>
       </section>

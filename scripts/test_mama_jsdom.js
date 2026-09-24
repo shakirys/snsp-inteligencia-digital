@@ -58,7 +58,7 @@ for (const s of scripts) {
   vm.runInContext(readFile(s), context, { filename: s });
 }
 
-window.SNSP_AUTH.login("osvaldo.bobadilla@snsp.qro.gob.mx", "SNSP2025");
+window.SNSP_AUTH.login("soraya.sanchez@snsp.qro.gob.mx", "SNSP2025");
 
 window.SNSP_renderCategoricalModulePage({
   moduleId: "mama",
