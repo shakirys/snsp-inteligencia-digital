@@ -132,10 +132,16 @@
     document.getElementById("di-correo").textContent = cfg.institution.supportEmail;
     document.getElementById("di-telefono").textContent = cfg.institution.supportPhone;
 
+    // ACT15 (punto 7): Municipio, Jurisdicción, Institución y Grupo de edad
+    // ya se usan en Morbilidad (filtros, Panorama de Casos, Tasa por
+    // Población) — se retira el "(módulos futuros)" de esas 4 etiquetas
+    // para no identificarlas incorrectamente como no usadas todavía. Sólo
+    // se ajusta el TEXTO de la etiqueta: cantidades y contenido de los
+    // catálogos quedan exactamente igual (sin validar/tocar aquí).
     const catalogLabels = {
-      anios: "Años", periodos: "Periodos", jurisdicciones: "Jurisdicciones (módulos futuros)",
-      municipios: "Municipios (módulos futuros)", instituciones: "Instituciones (módulos futuros)",
-      gruposEdad: "Grupos de edad (módulos futuros)", sexo: "Sexo (módulos futuros)",
+      anios: "Años", periodos: "Periodos", jurisdicciones: "Jurisdicciones",
+      municipios: "Municipios", instituciones: "Instituciones",
+      gruposEdad: "Grupos de edad", sexo: "Sexo (módulos futuros)",
       tiposIndicador: "Tipos de indicador",
     };
     document.getElementById("catalogos-grid").innerHTML = Object.entries(cfg.catalogs).map(([key, values]) => `

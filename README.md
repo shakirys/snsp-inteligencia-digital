@@ -14,6 +14,38 @@ identidad visual) se conserva sin romper.
 > Donde un indicador no puede calcularse, la plataforma muestra explícitamente
 > **"Dato pendiente de carga"**, nunca `null`, `undefined`, `NaN` ni un cero simulado.
 
+## Versión 2.5.0 — Morbilidad: panel Casos/Población/Tasa, propuestas de persistencia y seguridad
+
+Se integró a **Morbilidad** un panel nuevo, aditivo a la búsqueda por
+CIE-10/Epi-clave existente (que no se tocó): **"Análisis por Casos,
+Población y Tasa"**, con los mismos dos controles ya validados en **Cargar
+datos**:
+- **Analizar**: Casos / Población / Tasa por 100,000 habitantes.
+- **Por**: Padecimiento / Municipio / Grupo de edad / Institución.
+
+Ambos controles actualizan dinámicamente la gráfica y la tabla, reutilizando
+`window.SNSP_CARGA_SERVICE.agregarConPoblacion()` tal cual — no se
+recalculó nada distinto. El panel usa `BASE_CASOS_2025_2026.xlsx` y
+`BASE_POBLACION_2025_2026.xlsx` (las mismas bases reales que Cargar datos)
+porque el cubo de morbilidad por CIE-10 (`CUBOS_DE_MORBILIDAD_2025_CON_CUBOS.xlsx`)
+no trae grupo de edad ni un denominador poblacional válido — ver detalle en
+[`pages/metodologia.html`](pages/metodologia.html). Sin Top N ni otras
+funciones nuevas por ahora, a petición explícita.
+
+También se revisó la arquitectura actual para dos frentes que **siguen sin
+implementarse, sólo documentados como propuesta pendiente de aprobación**:
+- **Persistencia de datos de Cargar datos** (flujo Cargar → Mapear →
+  Validar → Aprobar/Publicar → Conservar, sin usar `localStorage` como
+  almacenamiento definitivo).
+- **Seguridad y protección de datos** (autenticación, roles y permisos,
+  registro de usuario/fecha/acción, respaldo/versionado, validación de
+  archivos antes de publicar, y cómo evitar exponer bases institucionales
+  como archivos públicos del repositorio en GitHub Pages).
+
+Ninguna función ya validada de Casos, Población, Tasa, comparación por
+años, filtros, gráficas, PDF, usuarios o carga de archivos se eliminó ni se
+modificó.
+
 ## Versión 2.4.1 — corrección de calidad de datos en Población
 
 Se reportó que la pirámide poblacional se veía "rota" (barras casi

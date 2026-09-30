@@ -14,13 +14,13 @@ window.SNSP_CONFIG = {
     name: "SNSP | Inteligencia Digital",
     shortName: "SNSP",
     slogan: "Datos que impulsan decisiones",
-    version: "2.4.1",
+    version: "2.5.0",
     environment: "demo", // demo | staging | production
   },
 
   institution: {
     fullName: "Servicio Nacional de Salud Pública — Querétaro",
-    area: "Dirección de Análisis y Estadística",
+    area: "Inteligencia e Información",
     supportEmail: "soporte.analisis@snsp-qro.gob.mx",
     supportPhone: "442 000 0000",
     // Equipo del Proyecto — sólo nombre y cargo institucional (sin
@@ -72,7 +72,7 @@ window.SNSP_CONFIG = {
     { id: "cacu", label: "Cáncer cervicouterino", route: "pages/cacu.html", icon: "cacu", enabled: true },
     { id: "mama", label: "Cáncer de mama", route: "pages/mama.html", icon: "mama", enabled: true },
     { id: "dengue", label: "Dengue", route: "pages/dengue.html", icon: "dengue", enabled: false },
-    { id: "morbilidad", label: "Morbilidad (Querétaro)", route: "pages/morbilidad.html", icon: "morbilidad", enabled: true },
+    { id: "morbilidad", label: "Morbilidad", route: "pages/morbilidad.html", icon: "morbilidad", enabled: true, validado: true },
     { id: "poblacion", label: "Población (Querétaro)", route: "pages/poblacion.html", icon: "poblacion", enabled: true },
     { id: "mortalidad", label: "Mortalidad", route: "pages/mortalidad.html", icon: "mortalidad", enabled: false },
     { id: "vacunacion", label: "Vacunación", route: "pages/vacunacion.html", icon: "vacunacion", enabled: false },
@@ -109,6 +109,56 @@ window.SNSP_CONFIG = {
   // entrada nueva aquí cada vez que se libere una versión; no requiere
   // tocar ninguna pantalla.
   changelog: [
+    {
+      version: "2.5.0",
+      fecha: "2026-09-25",
+      notas: [
+        "Morbilidad (ACT16): en los menús de Mes y Semana epidemiológica se agregó 'Seleccionar todos' / 'Seleccionar todas', que marca de un click sólo las opciones actualmente COMPATIBLES con el otro filtro activo (nunca reintroduce un valor fuera de esa compatibilidad); cuando quedan todas las opciones disponibles marcadas, el área de chips se colapsa a mostrar simplemente 'Todos'/'Todas' en vez de listar cada una.",
+        "Morbilidad (ACT16): la Vista previa del PDF se amplió a ~90% de la pantalla (antes quedaba chica dentro del modal) y ahora trae controles de zoom ('－'/'＋' en pasos de 10%) y 'Ajustar a ancho', que recalcula el zoom para aprovechar el ancho disponible del visor.",
+        "Morbilidad (ACT16): dentro de la Vista previa, 'Volver a editar' y 'Generar PDF' quedan SIEMPRE visibles (ya no hay que recorrer todo el reporte para llegar a ellos) y se agregó navegación 'Anterior | Página X de Y | Siguiente' que salta directo a cada página.",
+        "Morbilidad (ACT16): las gráficas del PDF aprovechan más espacio de página (antes tenían un tope fijo que las dejaba chicas, sobre todo con muchas categorías como Municipio); cuando gráfica + tabla no caben legibles en una sola página, la gráfica se dibuja grande en su propia página y la tabla pasa a una página de continuación inmediatamente después — la Vista previa refleja exactamente esa misma distribución (un solo generador de páginas para PDF y Vista previa, para que nunca se desalineen entre sí).",
+        "Morbilidad (ACT16): se corrigió la inconsistencia detectada entre 'categorías encontradas' y el panel de Municipio — los municipios con 0 casos en AMBOS años (2025 y 2026) siguen mostrándose (con su 0) para poder comparar entre años, pero ya no se cuentan como 'con datos'; el panel, su nota en el PDF/Vista previa y el conteo usan ahora la misma fuente (la gráfica ya dibujada), para que nunca vuelvan a mostrar cifras distintas entre sí.",
+        "Validación obligatoria (ACT16): se repitió la validación de ACT15 tras estos 5 ajustes — sin filtros de Mes/Semana, el total general sigue siendo exactamente 1,270,390 casos, y la selección T63.2, X22 — Intoxicación por picadura de alacrán sigue dando exactamente 10,252 casos — verificado con pruebas automatizadas y en navegador real, sin tocar datos ni cálculos.",
+        "No se modificó ningún dato, cálculo ni comportamiento ya validado en ACT15: Población sigue siendo estrictamente anual, la lógica de Año/Mes/Semana no cambió, y el resto del PDF/Vista previa/Panorama de Casos se comporta igual salvo los 5 puntos anteriores.",
+      ],
+    },
+    {
+      version: "2.5.0",
+      fecha: "2026-09-25",
+      notas: [
+        "Morbilidad (ACT15): Mes y Semana epidemiológica ahora son de selección MÚLTIPLE (chips, igual que Año) — se puede elegir uno, varios o todos los meses/semanas a la vez, manteniendo la coherencia Mes↔Semana↔Año ya validada en ACT14. La Población sigue siendo anual: Mes/Semana filtran únicamente los Casos, sin dividir, duplicar ni desagregar el denominador poblacional.",
+        "Morbilidad (ACT15): el periodo vigente (incluyendo Mes/Semana elegidos) ahora se muestra de forma explícita en subtítulos, tabla, Panorama de Casos, Vista previa y PDF (p. ej. 'Comparativo 2025 vs 2026 | Mayo' o 'Semanas epidemiológicas 01–04'); Tendencia por año/mes y Comparativo por mes y año sólo dibujan los meses dentro de la selección vigente — un mes excluido a propósito ya no aparece como 'Sin información' (esa leyenda queda reservada para cuando el periodo sí está incluido pero de verdad no hay datos cargados).",
+        "Morbilidad (ACT15): los valores numéricos de las gráficas temporales vuelven a mostrarse en NEGRITA (manteniendo el tamaño pequeño de ACT14); en Tendencia por año/mes, 2025 se dibuja arriba del punto y 2026 debajo, en pantalla y en PDF, para evitar traslapes.",
+        "Morbilidad (ACT15): la Vista previa del PDF ahora es VISUAL — muestra las páginas del reporte tal como quedarán (encabezado, periodo/filtros, KPI, gráficas reales capturadas de las mismas gráficas en pantalla, tablas reales, Análisis/Observaciones, saltos de página y orientación vertical/horizontal), en vez del resumen de texto plano anterior. Conserva 'Volver a editar' / 'Generar PDF'.",
+        "Morbilidad (ACT15): se revisó la distribución del PDF — la orientación se sigue decidiendo automáticamente por sección (vertical primero, horizontal sólo si Municipio/Grupo de edad/Padecimientos de verdad lo necesitan por número de categorías o longitud de etiquetas), priorizando legibilidad sobre menos páginas; una gráfica nunca se reduce para forzarla a compartir página con su tabla.",
+        "Configuración (ACT15): 'Área' pasa de 'Dirección de Análisis y Estadística' a 'Inteligencia e Información'. Catálogos base: Municipio, Jurisdicción, Institución y Grupo de edad ya no se identifican como '(módulos futuros)', porque ya se usan en Morbilidad — sólo se ajustó el texto de la etiqueta, sin tocar cantidades ni contenido de los catálogos.",
+        "Validación obligatoria (ACT15): sin filtros de Mes/Semana, el total general se confirmó en exactamente 1,270,390 casos, y la selección T63.2, X22 — Intoxicación por picadura de alacrán en exactamente 10,252 casos — verificado contra las bases originales (BASE_CASOS_2025_2026, BASE_POBLACION_2025_2026) y dentro de la aplicación corriendo (pruebas automatizadas y navegador real), sin modificar ningún dato para forzar el resultado.",
+        "Se conservan sin cambios: cálculos de Casos/Población/Tasa, comparación 2025/2026, Top N, Panorama de Casos, buscadores sincronizados Padecimiento/CIE-10/Epi-clave, filtros de Municipio/Jurisdicción/Institución, tablas y estructura de datos ya validadas. No se modificó la arquitectura de Cargar datos ni se implementó actualización automática de bases (queda para una etapa posterior); tampoco se tocó Dashboard, login, seguridad, usuarios ni roles.",
+      ],
+    },
+    {
+      version: "2.5.0",
+      fecha: "2026-09-25",
+      notas: [
+        "Morbilidad (ACT14): nuevos filtros globales Mes y Semana epidemiológica (desde BASE_CASOS_2025_2026), relacionados con Año y coherentes entre sí (las opciones de Semana se acotan a las compatibles con el Mes elegido, y viceversa, calculado directamente de los datos, nunca asumido) — afectan KPI, gráficas, tablas, Panorama y PDF. La Población sigue siendo anual, sin duplicarse ni desagregarse por Mes/Semana.",
+        "Morbilidad (ACT14): Padecimiento, CIE-10 y Epi-clave ahora son 3 buscadores sincronizados (elegir en uno actualiza los otros 2 y la selección activa), en vez de un solo campo.",
+        "Morbilidad (ACT14): filtros reordenados (Analizar | Por | Año | Mes | Semana, y debajo Municipio | Jurisdicción | Institución | Aplicar | Limpiar); tarjetas KPI ~25-30% más bajas; etiquetas de las gráficas temporales más pequeñas, sin negrita y con separación visual entre 2025/2026 (en pantalla y PDF) — los periodos sin datos se siguen mostrando como 'Sin información', nunca como cero.",
+        "Morbilidad (ACT14): el PDF ahora decide la orientación vertical/horizontal POR SECCIÓN (ya no todo el documento a la vez), para aprovechar mejor la página en Municipio, Grupo de edad y Padecimientos cuando lo necesitan; incluye todos los filtros activos, incluyendo Mes/Semana.",
+        "Morbilidad (ACT14): 'Observaciones' pasó a llamarse 'Análisis / Observaciones', y antes de generar el PDF ahora se muestra una Vista previa del reporte (secciones, periodo, filtros y Análisis/Observaciones) con opción de 'Volver a editar' o confirmar 'Generar PDF'.",
+        "Menú global: 'Morbilidad (Querétaro)' ahora se muestra como 'Morbilidad', con un indicador discreto de módulo validado (Población, por ahora, no lo tiene).",
+        "Se conservan sin cambios: comparación 2025/2026, Top N, Panorama de Casos, tasas y el resto de las funciones ya validadas. Los totales SIN los nuevos filtros de Mes/Semana coinciden exactamente con los de la entrega anterior (verificado tanto internamente en la construcción de los datos como contra la entrega previa, sin ninguna diferencia).",
+        "No se tocó Dashboard, portada/login, seguridad, usuarios ni roles en esta entrega — fuera de alcance explícito de ACT14.",
+      ],
+    },
+    {
+      version: "2.5.0",
+      fecha: "2026-09-24",
+      notas: [
+        "Morbilidad: nuevo panel 'Análisis por Casos, Población y Tasa' (Analizar: Casos / Población / Tasa por 100,000 habitantes — Por: Padecimiento / Municipio / Grupo de edad / Institución), aditivo a la búsqueda CIE-10/Epi-clave existente, que no se modificó. Usa BASE_CASOS_2025_2026 y BASE_POBLACION_2025_2026 (las mismas bases y el mismo cálculo ya validados en Cargar datos) porque el cubo de morbilidad por CIE-10 no trae grupo de edad ni denominador poblacional. Sin Top N ni otras funciones nuevas por ahora.",
+        "Cargar datos sigue siendo un prototipo: los archivos cargados y mapeados NO se conservan entre sesiones ni alimentan otros módulos todavía. Se prepararon (sin implementar) una propuesta de arquitectura de persistencia (Cargar → Mapear → Validar → Aprobar/Publicar → Conservar, sin localStorage como almacenamiento definitivo) y una propuesta de seguridad/roles/autenticación — ambas pendientes de aprobación antes de construirse.",
+        "No se eliminó ni modificó ninguna función ya validada de Casos, Población, Tasa, comparación por años, filtros, gráficas, PDF, usuarios o carga de archivos.",
+      ],
+    },
     {
       version: "2.4.1",
       fecha: "2026-07-23",

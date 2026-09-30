@@ -68,46 +68,53 @@
 
         <hr style="border:none; border-top:1px solid var(--border-subtle); margin:var(--sp-5) 0;">
 
-        <h2 style="margin-bottom:var(--sp-4)">Morbilidad — estado de Querétaro (prueba funcional)</h2>
+        <h2 style="margin-bottom:var(--sp-4)">Morbilidad — estado de Querétaro</h2>
 
         <h3 style="font-size:var(--fs-body-lg); margin-bottom:var(--sp-2);">Fuentes de información</h3>
         <table style="width:100%; margin-bottom:var(--sp-5);">
           <thead><tr><th class="col-text">Base</th><th class="col-text">Registros</th><th class="col-text">Columnas usadas</th></tr></thead>
           <tbody>
-            <tr><td class="col-text">CUBOS_DE_MORBILIDAD_2025_CON_CUBOS.xlsx (hoja "Sheet 1")</td><td class="col-text">201,047</td><td class="col-text">Año, Entidad (única: Querétaro), CLUES, Unidad médica, Institución, Jurisdicción, Municipio, Epi-Clave, Mes, Padecimiento (con CIE-10 entre paréntesis), Casos confirmados</td></tr>
-            <tr><td class="col-text">ESTABLECIMIENTO_SALUD_202601.xlsx (hoja "CLUES_202601", sólo Querétaro)</td><td class="col-text">862</td><td class="col-text">CLUES, nombre oficial de la unidad, tipo de establecimiento, nivel de atención, estatus de operación — complementa por CLUES, sin duplicar casos</td></tr>
+            <tr><td class="col-text">BASE_CASOS_2025_2026.xlsx</td><td class="col-text">288,106 filas originales (pre-agregadas a 20,563 combinaciones, misma suma)</td><td class="col-text">Año, Jurisdicción, Municipio, Institución, Grupo de edad, Epi-Clave, Padecimiento (con CIE-10 entre paréntesis), Casos</td></tr>
+            <tr><td class="col-text">BASE_CASOS_2025_2026.xlsx (bundle temporal, misma base)</td><td class="col-text">288,106 filas originales (pre-agregadas distinto: 35,809 combinaciones)</td><td class="col-text">Año, Jurisdicción, Municipio, Institución, Mes, Sexo, Epi-Clave, Casos — sólo para Tendencia por año/mes, comparativo por mes y año y Casos por sexo</td></tr>
+            <tr><td class="col-text">BASE_POBLACION_2025_2026.xlsx</td><td class="col-text">396 filas</td><td class="col-text">Año, Municipio, Grupo de edad, Población — se relaciona con BASE_CASOS por Año + Municipio + Grupo de edad, sin duplicar población</td></tr>
           </tbody>
         </table>
         <p class="col-text" style="margin-bottom:var(--sp-5);">
-          Años de referencia: <strong>2024, 2025 y 2026</strong> (los tres años presentes en la base). Fecha de carga a la plataforma: <strong>22/07/2026</strong>.
-          La base original, sin modificar, se conserva en <code>data/raw/</code>. <strong>Esta base es exclusivamente del estado de Querétaro</strong>: no se comparó ni se combinó con ninguna fuente nacional.
+          Años de referencia: <strong>2025 y 2026</strong> (los dos años presentes en la base). Es la misma base ya validada en el módulo Cargar datos.
+          La base original, sin modificar, no se expone públicamente (ver <code>data/raw/</code>, vacío en el proyecto entregado). <strong>Esta base es exclusivamente del estado de Querétaro</strong>: no se comparó ni se combinó con ninguna fuente nacional.
+          El "bundle temporal" es la MISMA base BASE_CASOS_2025_2026, agregada aparte (Mes y Sexo en vez de Grupo de edad) para no inflar el bundle principal — ver <code>scripts/build_morbilidad_casos.py</code>.
         </p>
 
         <h3 style="font-size:var(--fs-body-lg); margin-bottom:var(--sp-2);">Variables utilizadas y transformaciones aplicadas</h3>
         <ul class="col-text" style="margin-bottom:var(--sp-5); padding-left:1.2em; list-style:disc;">
-          <li><strong>Municipio, Jurisdicción, Institución</strong>: se corrige acentuación y capitalización contra un catálogo fijo de los 18 municipios y 4 jurisdicciones de Querétaro (misma lógica que la corrección de "entidad" en CACU/Mama); ningún valor nuevo se agrega.</li>
-          <li><strong>Código CIE-10</strong>: se extrae del texto entre paréntesis al final de "Padecimiento" (p. ej. de <code>"Tumor maligno de la mama(C50)"</code> se obtiene <code>C50</code>). Si el padecimiento no trae paréntesis, el campo queda vacío — no se inventa.</li>
-          <li><strong>Accesos rápidos C50, C53, D06, N87</strong>: se activan sólo si el código aparece realmente en el catálogo de 160 padecimientos. <strong>D05 no está presente en esta base</strong> y se muestra deshabilitado.</li>
-          <li><strong>CLUES</strong>: se enriquece con nombre oficial, tipo de establecimiento, nivel de atención y estatus de operación desde ESTABLECIMIENTO_SALUD_202601.xlsx, mediante una relación 1 a 1 por clave CLUES (no se duplican casos).</li>
+          <li><strong>Municipio, Jurisdicción, Institución, Grupo de edad, Mes, Sexo</strong>: se dejan tal cual vienen en el archivo (incluyendo el prefijo numérico, p. ej. "006 Corregidora" o "01 Enero"), sin renombrar ni canonicalizar — para que el cruce por texto con BASE_POBLACION siga funcionando igual.</li>
+          <li><strong>Código CIE-10</strong>: se extrae del texto entre paréntesis al final de "Padecimiento" (p. ej. de <code>"Tumor maligno de la mama(C50)"</code> se obtiene <code>C50</code>).</li>
+          <li><strong>Población y Tasa</strong>: para cada categoría se junta primero el conjunto de combinaciones ÚNICAS de Año+Municipio+Grupo de edad presentes en las filas de Casos ya filtradas, y sólo con ese conjunto se suma población — nunca por fila de Casos, que trae varias filas por combinación (misma lógica ya validada en Cargar datos).</li>
         </ul>
 
         <h3 style="font-size:var(--fs-body-lg); margin-bottom:var(--sp-2);">Fórmulas de los indicadores implementados</h3>
         <table style="width:100%; margin-bottom:var(--sp-5);">
           <tbody>
-            <tr><td class="col-text" style="width:45%; font-weight:600;">Total de casos</td><td class="col-text">Suma de "Casos confirmados" del/de los padecimiento(s) seleccionado(s), con los filtros aplicados.</td></tr>
-            <tr><td class="col-text" style="font-weight:600;">Casos por municipio / jurisdicción / institución / mes-año / CLUES</td><td class="col-text">Suma de "Casos confirmados" agrupada por esa columna, sobre la selección y filtros vigentes.</td></tr>
+            <tr><td class="col-text" style="width:45%; font-weight:600;">Casos</td><td class="col-text">Suma de "Casos" de la selección y filtros vigentes, agrupada por Padecimiento / Municipio / Jurisdicción / Grupo de edad ("Por"), o por Municipio / Jurisdicción / Institución / Grupo de edad / Sexo / Mes / Padecimiento en los paneles fijos del "Panorama de Casos".</td></tr>
+            <tr><td class="col-text" style="font-weight:600;">Población</td><td class="col-text">Suma de Población de BASE_POBLACION relacionada por Año+Municipio+Grupo de edad, sin duplicar por cada fila de Casos que comparta esa combinación.</td></tr>
+            <tr><td class="col-text" style="font-weight:600;">Tasa</td><td class="col-text">Casos ÷ Población × 100,000 habitantes, por categoría — disponible únicamente en la gráfica dinámica de Analizar/Por (Padecimiento/Municipio/Jurisdicción/Grupo de edad). No se calcula Tasa por Institución, por Mes ni por Sexo: la población de esta base sólo está desagregada por Año+Municipio+Grupo de edad, así que esos paneles del "Panorama de Casos" son exclusivamente de Casos.</td></tr>
           </tbody>
         </table>
 
         <h3 style="font-size:var(--fs-body-lg); margin-bottom:var(--sp-2);">Nivel de desagregación disponible</h3>
-        <p class="col-text" style="margin-bottom:var(--sp-5);">Año, municipio, jurisdicción sanitaria, institución, CLUES/unidad médica y mes. <strong>No hay sexo ni grupo de edad</strong> en esta base — se muestran explícitamente como "Dato pendiente de carga".</p>
+        <p class="col-text" style="margin-bottom:var(--sp-5);">Año (2025, 2026 o comparativo), Jurisdicción sanitaria, Municipio, Institución, Grupo de edad, Mes y Sexo. Institución, Mes y Sexo sólo están disponibles como filtro (Institución) o dentro de los paneles fijos del "Panorama de Casos" (Mes y Sexo) — nunca como opción de "Por" en la gráfica dinámica ni con Tasa, porque la población no está desagregada por esas variables. La fuente también trae Semana, que ningún panel usa por alcance de esta actualización.</p>
+
+        <h3 style="font-size:var(--fs-body-lg); margin-bottom:var(--sp-2);">Panorama de Casos (paneles fijos)</h3>
+        <p class="col-text" style="margin-bottom:var(--sp-5);">
+          Debajo de la gráfica dinámica de Analizar/Por, el tablero muestra 8 paneles fijos — Casos por municipio (los 18 municipios, 0-rellenados), Casos por jurisdicción sanitaria (dona, o barras agrupadas por año si hay comparativo), Casos por institución, Casos por grupo de edad, Padecimiento(s) dentro de la selección, Tendencia por año/mes (línea mensual; una serie por año, sobre los mismos 12 meses Ene-Dic, cuando hay comparativo), comparativo por mes y año (barras por mes, agrupadas por año si hay comparativo) y Casos por sexo — TODOS exclusivamente de Casos y TODOS respetando los mismos filtros (Municipio/Jurisdicción/Institución), el mismo buscador (CIE-10/Epi-clave/padecimiento) y el mismo selector de Año que el resto del tablero. Cuando 2025 y 2026 están seleccionados, los paneles cambian automáticamente a comparativo (una serie por año).
+        </p>
 
         <h3 style="font-size:var(--fs-body-lg); margin-bottom:var(--sp-2);">Limitaciones</h3>
         <ul class="col-text" style="margin-bottom:var(--sp-5); padding-left:1.2em; list-style:disc;">
-          <li>No es posible calcular incidencia, tasas ni cobertura: no hay un padrón poblacional validado todavía. El archivo de Microregionalización se identificó como candidato para esto, pero no se usa en esta prueba funcional.</li>
-          <li>No hay sexo ni grupo de edad en la fuente; esos desgloses no se calculan ni se infieren.</li>
-          <li>La base es exclusivamente estatal (Querétaro). No incluye comparativo con otras entidades ni vista nacional — la arquitectura queda preparada para agregarlo cuando llegue una base nacional equivalente.</li>
+          <li>La base es exclusivamente estatal (Querétaro). No incluye comparativo con otras entidades ni vista nacional.</li>
+          <li>No hay detalle por CLUES/unidad médica en esta base (BASE_CASOS_2025_2026 no trae esa columna); para ese nivel de detalle se necesitaría una fuente adicional.</li>
           <li>"Epi-Clave" es un código epidemiológico interno (SUIVE), distinto del CIE-10; el CIE-10 mostrado se extrae del texto de "Padecimiento" y puede representar un rango (p. ej. "N87.0-N87.1"), no siempre un código único.</li>
+          <li>No se calcula Tasa por Institución, por Mes ni por Sexo: BASE_POBLACION_2025_2026 sólo desagrega población por Año+Municipio+Grupo de edad, no por esas variables.</li>
         </ul>
       </div>
     </main>

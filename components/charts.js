@@ -128,10 +128,24 @@ function SNSP_tituloGrafica(parts) {
 
 var SNSP_CHART_LABEL_SKIPS = []; // se llena en cada render con avisos de legibilidad (ver renderAll de cada módulo / resumen de entrega)
 
-function _snspLabelFont(count) {
-  if (count <= 8) return "600 13px";
-  if (count <= 16) return "600 12px";
-  return "600 10px";
+function _snspLabelFont(count, overridePx, overrideWeight) {
+  // overridePx: tamaño fijo OPCIONAL (número o "Npx"), retrocompatible — si
+  // no se pasa, se usa exactamente la heurística de siempre por número de
+  // categorías (ver morbilidadModuleView.js, paneles mensuales: lo usan
+  // para reducir el tamaño cuando además hay varias series por categoría,
+  // algo que esta heurística por sí sola no contempla).
+  // overrideWeight (ACT14): grosor de fuente OPCIONAL ("400" = sin
+  // negrita), también retrocompatible — sin pasarlo, se mantiene "600"
+  // (semi-negrita) exactamente igual que siempre en todos los demás
+  // llamadores.
+  const weight = overrideWeight || "600";
+  if (overridePx) {
+    const px = typeof overridePx === "number" ? overridePx : parseInt(overridePx, 10);
+    return `${weight} ${px}px`;
+  }
+  if (count <= 8) return `${weight} 13px`;
+  if (count <= 16) return `${weight} 12px`;
+  return `${weight} 10px`;
 }
 
 var SNSP_VALUE_LABELS_PLUGIN = {
@@ -145,7 +159,7 @@ var SNSP_VALUE_LABELS_PLUGIN = {
     const textColor = cs.getPropertyValue("--text-primary").trim() || "#22201D";
     const formatter = cfg.formatter || SNSP_formatNumber;
     const categoryCount = (chart.data.labels || []).length;
-    const fontSize = _snspLabelFont(categoryCount);
+    const fontSize = _snspLabelFont(categoryCount, cfg.fontSize, cfg.fontWeight);
 
     ctx.save();
     ctx.fillStyle = textColor;
@@ -186,7 +200,16 @@ var SNSP_VALUE_LABELS_PLUGIN = {
         const raw = dataset.data[i];
         if (raw === null || raw === undefined) return;
         if (cfg.skipZero && !raw) return;
-        const label = formatter(raw, dataset, i);
+        // Defensivo: un formatter opcional inválido (o que lance una
+        // excepción con algún valor atípico del motor real de Chart.js)
+        // nunca debe romper el dibujado de la gráfica completa — cae al
+        // formateador numérico de siempre en vez de propagar el error.
+        let label;
+        try {
+          label = typeof formatter === "function" ? formatter(raw, dataset, i) : SNSP_formatNumber(raw);
+        } catch (e) {
+          label = SNSP_formatNumber(raw);
+        }
 
         if (isBar) {
           const horizontal = chart.options.indexAxis === "y";
@@ -209,7 +232,24 @@ var SNSP_VALUE_LABELS_PLUGIN = {
         } else if (isLine) {
           if (meta.data.length > 20) return; // demasiados puntos: se deja sólo el tooltip
           ctx.textAlign = "center";
-          ctx.fillText(label, el.x, el.y - 12);
+          // ACT15 (opcional, retrocompatible): cfg.pointLabelSplit reparte
+          // las series ARRIBA/ABAJO del punto en vez de apilarlas todas
+          // arriba — pensado para comparativos de 2 años (Morbilidad —
+          // Tendencia por año/mes): la serie más temprana (dsIndex par,
+          // típicamente 2025) queda arriba, la más reciente (dsIndex
+          // impar, típicamente 2026) queda abajo, evitando el traslape
+          // que había antes con ambas etiquetas apiladas del mismo lado.
+          // Sin pasar la opción, el comportamiento es EXACTAMENTE el de
+          // siempre (todas arriba, cada dataset un poco más arriba que el
+          // anterior) — ningún otro módulo que no la pase se ve afectado.
+          if (cfg.pointLabelSplit) {
+            const par = Math.floor(dsIndex / 2);
+            const arriba = dsIndex % 2 === 0;
+            const offset = 10 + par * 13;
+            ctx.fillText(label, el.x, arriba ? el.y - offset : el.y + offset);
+          } else {
+            ctx.fillText(label, el.x, el.y - 12 - dsIndex * 13);
+          }
         }
       });
     });
@@ -269,7 +309,7 @@ function SNSP_baseChartOptions(extra, opts) {
       },
       legend: { labels: { font: { family: font, size: 12 }, color: textSecondary, padding: 14 } },
       tooltip: { titleFont: { family: font, size: 13 }, bodyFont: { family: font, size: 12 } },
-      snspValueLabels: { enabled: (opts && opts.showValues) !== false, formatter: opts && opts.formatter },
+      snspValueLabels: { enabled: (opts && opts.showValues) !== false, formatter: opts && opts.formatter, fontSize: opts && opts.valueLabelFontSize, fontWeight: opts && opts.valueLabelFontWeight, pointLabelSplit: opts && opts.pointLabelSplit },
     },
     scales: {
       x: { grid: { display: false }, ticks: { font: { family: font, size: 11 } } },
@@ -324,9 +364,14 @@ function SNSP_renderBarChart(canvasId, labels, values, label, opts) {
         data: values,
         backgroundColor,
         borderRadius: 3,
-        maxBarThickness: horizontal ? 26 : 34,
-        barPercentage: 0.82,
-        categoryPercentage: 0.82,
+        // opts.maxBarThickness/barPercentage/categoryPercentage: overrides
+        // opcionales (por defecto, exactamente el comportamiento de
+        // siempre) para que un módulo pueda pedir grosor/separación de
+        // barra uniformes sin afectar a los demás llamadores que no los
+        // pasan (ver morbilidadModuleView.js, ACT09).
+        maxBarThickness: opts.maxBarThickness || (horizontal ? 26 : 34),
+        barPercentage: opts.barPercentage !== undefined ? opts.barPercentage : 0.82,
+        categoryPercentage: opts.categoryPercentage !== undefined ? opts.categoryPercentage : 0.82,
       }],
     },
     options: SNSP_baseChartOptions(extra, opts),
@@ -390,9 +435,10 @@ function SNSP_renderGroupedBarChart(canvasId, labels, series, yLabel, opts) {
         data: s.data,
         backgroundColor: palette[i % palette.length],
         borderRadius: 3,
-        maxBarThickness: horizontal ? 20 : 22,
-        barPercentage: 0.82,
-        categoryPercentage: 0.82,
+        // Mismos overrides opcionales que SNSP_renderBarChart (ver ahí).
+        maxBarThickness: opts.maxBarThickness || (horizontal ? 20 : 22),
+        barPercentage: opts.barPercentage !== undefined ? opts.barPercentage : 0.82,
+        categoryPercentage: opts.categoryPercentage !== undefined ? opts.categoryPercentage : 0.82,
       })),
     },
     options: SNSP_baseChartOptions({ indexAxis: horizontal ? "y" : "x", scales: scalesExtra }, opts),

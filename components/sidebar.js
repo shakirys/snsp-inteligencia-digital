@@ -36,10 +36,13 @@ function SNSP_renderSidebar(containerId, activeModuleId) {
     const isActive = m.id === activeModuleId;
     const disabled = !m.enabled;
     const href = disabled ? "#" : (isRoot ? m.id + ".html" : prefix + m.id + ".html");
+    const validadoBadge = m.validado
+      ? `<span class="sidebar__link-validado" title="Módulo validado" aria-label="Módulo validado"></span>`
+      : "";
     return `<a class="sidebar__link ${isActive ? "is-active" : ""} ${disabled ? "is-disabled" : ""}"
                 href="${href}" ${disabled ? 'title="Próximamente" onclick="return false;"' : ""}>
               <span class="sidebar__link-icon">${icons[m.id] || "&#8226;"}</span>
-              <span class="sidebar__link-label">${m.label}${disabled ? " · próx." : ""}</span>
+              <span class="sidebar__link-label">${m.label}${disabled ? " · próx." : ""}${validadoBadge}</span>
             </a>`;
   }).join("");
 
@@ -91,7 +94,7 @@ function SNSP_renderSidebar(containerId, activeModuleId) {
     </nav>` : ""}
 
     <div class="sidebar__footer">
-      v${cfg.platform.version} · ${cfg.platform.environment}<br>
+      v${cfg.platform.version}<br>
       ${user ? window.SNSP_AUTH.ROLES[user.role].label : ""}
     </div>
   `;

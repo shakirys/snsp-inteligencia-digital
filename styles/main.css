@@ -135,6 +135,19 @@ button { font-family: var(--font-body); }
 .sidebar__link.is-disabled { opacity: 0.35; cursor: not-allowed; }
 .sidebar__link-icon { width: 18px; text-align: center; flex-shrink: 0; }
 
+/* Indicador discreto de "módulo validado" (ACT14) — un punto pequeño junto
+   a la etiqueta, no un badge llamativo; vive dentro de .sidebar__link-label
+   para que se oculte solo junto con la etiqueta en el sidebar colapsado. */
+.sidebar__link-validado {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--c-verde-claro);
+  margin-left: var(--sp-2);
+  vertical-align: middle;
+}
+
 .sidebar__footer {
   margin-top: auto;
   padding: var(--sp-4) var(--sp-5) 0;
@@ -227,6 +240,9 @@ button { font-family: var(--font-body); }
   box-shadow: var(--shadow-card); width: 100%; max-width: 460px;
   padding: var(--sp-6); max-height: 90vh; overflow-y: auto;
 }
+/* Variante más ancha para modales con más contenido (p. ej. selección de
+   secciones del reporte PDF de Morbilidad) — mismo look, sólo más ancho. */
+.modal-box--wide { max-width: 620px; }
 .modal-box h3 { margin-bottom: var(--sp-4); font-size: 1.1rem; }
 .modal-box form { display: flex; flex-direction: column; gap: var(--sp-4); }
 .modal-box__actions { display: flex; justify-content: flex-end; gap: var(--sp-3); margin-top: var(--sp-2); }
@@ -234,6 +250,45 @@ button { font-family: var(--font-body); }
   font-size: var(--fs-body-sm); color: var(--c-rojo-claro); display: none;
 }
 .modal-box__error.is-visible { display: block; }
+
+/* ---- ACT16 puntos 2 y 3: Vista previa del PDF (Morbilidad) ampliada a
+   ~90% de la pantalla, con layout de columna fija: barra de herramientas
+   (zoom + paginación) arriba y botones "Volver a editar"/"Generar PDF"
+   abajo SIEMPRE visibles — sólo el lienzo central (con las páginas)
+   hace scroll, así no hay que recorrer todo el reporte para llegar a los
+   botones. La clase se activa/desactiva por JS al entrar/salir del paso
+   de vista previa (ver _mostrarVistaPrevia / _mostrarPasoFormularioPdf en
+   morbilidadModuleView.js), para no agrandar el modal en el paso 1
+   (selección de secciones). ---- */
+#modal-morb-pdf .modal-box.is-vista-previa-activa {
+  max-width: 90vw; width: 90vw;
+  height: 90vh; max-height: 90vh;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+#modal-morb-pdf .modal-box.is-vista-previa-activa #morb-pdf-vista-previa {
+  display: flex; flex-direction: column;
+  flex: 1; min-height: 0;
+}
+.morb-vp-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-2); margin-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+.morb-vp-toolbar__grupo { display: flex; align-items: center; gap: 6px; }
+.morb-vp-toolbar__valor {
+  font-size: var(--fs-body-sm); color: var(--text-secondary);
+  min-width: 92px; text-align: center; font-variant-numeric: tabular-nums;
+}
+.morb-vp-lienzo {
+  flex: 1; min-height: 0; overflow: auto;
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  padding: var(--sp-3);
+  background: var(--bg-muted, #EFEAE0);
+}
+.morb-vp-acciones { flex-shrink: 0; padding-top: var(--sp-3); }
 
 /* =========================================================
    CONFIGURACIÓN (tarjetas de acceso a sub-secciones)
@@ -306,6 +361,19 @@ button { font-family: var(--font-body); }
   margin-bottom: var(--sp-6);
 }
 
+/* ACT14 (Morbilidad): tarjetas KPI ~25-30% más bajas que el estándar de
+   la plataforma — se aplica SÓLO donde se agrega esta clase modificadora
+   (id="kpi-grid" se repite en CACU/Mama/Población/Dashboard, así que no
+   se puede usar el id solo sin afectarlos a todos); ningún otro módulo
+   agrega "indicator-grid--compact", así que su tarjeta KPI no cambia. */
+.indicator-grid--compact .indicator-card {
+  padding: var(--sp-3) var(--sp-4);
+  gap: 4px;
+}
+.indicator-grid--compact .indicator-card__value {
+  font-size: 1.5rem;
+}
+
 /* =========================================================
    BOTONES
    ========================================================= */
@@ -336,7 +404,7 @@ label { font-size: var(--fs-body-sm); font-weight: 500; color: var(--text-second
 
 .field { display: flex; flex-direction: column; gap: 4px; }
 
-select, input[type="text"], input[type="password"], input[type="email"] {
+select, input[type="text"], input[type="password"], input[type="email"], textarea {
   font-family: var(--font-body);
   font-size: var(--fs-body-sm);
   padding: var(--sp-2) var(--sp-3);
@@ -345,7 +413,8 @@ select, input[type="text"], input[type="password"], input[type="email"] {
   background: var(--bg-panel);
   color: var(--text-primary);
 }
-select:focus, input:focus { border-color: var(--c-dorado); }
+select:focus, input:focus, textarea:focus { border-color: var(--c-dorado); }
+textarea { resize: vertical; min-height: 72px; }
 
 .filter-bar {
   display: flex;
@@ -871,6 +940,19 @@ th.sortable:hover { color: var(--c-vino); }
 }
 .carga-anio-opcion:hover { background: var(--bg-sunken); }
 .carga-anio-opcion input { accent-color: var(--c-vino); }
+/* ACT16 punto 1: botón "Seleccionar todos/todas" al principio del menú de
+   Mes/Semana — marca sólo las opciones disponibles (compatibilidad ya
+   resuelta por el llamador), nunca agrega valores fuera del catálogo. */
+.carga-anio-opcion-todos {
+  display: block; width: 100%; text-align: left;
+  padding: 4px var(--sp-2); margin-bottom: 4px;
+  border: none; border-bottom: 1px solid var(--border-strong);
+  border-radius: 0;
+  background: transparent; color: var(--c-vino);
+  font-family: var(--font-body); font-size: var(--fs-body-sm); font-weight: 600;
+  cursor: pointer;
+}
+.carga-anio-opcion-todos:hover { text-decoration: underline; }
 
 /* ---- Filtro con buscador de texto (v2.8.0-prototipo): reutilizable para
    cualquier columna con muchos valores únicos (Padecimiento, Unidad
