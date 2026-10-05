@@ -14,7 +14,7 @@ window.SNSP_CONFIG = {
     name: "SNSP | Inteligencia Digital",
     shortName: "SNSP",
     slogan: "Datos que impulsan decisiones",
-    version: "2.5.0",
+    version: "2.6.0",
     environment: "demo", // demo | staging | production
   },
 
@@ -109,6 +109,18 @@ window.SNSP_CONFIG = {
   // entrada nueva aquí cada vez que se libere una versión; no requiere
   // tocar ninguna pantalla.
   changelog: [
+    {
+      version: "2.6.0",
+      fecha: "2026-10-01",
+      notas: [
+        "Morbilidad (actualización 2022-2026): se reemplazaron las bases BASE_CASOS_2025_2026.xlsx y BASE_POBLACION_2025_2026.xlsx por TRES bases nuevas e independientes — BASE_CASOS_HISTORICOS_SUIVE_QRO_2022_2026.xlsx, BASE_PADECIMIENTOS_SUIVE_QRO_2022_2026_plana.xlsx y EXTRACCION_POBLACION_SUIVE_QRO_2022_2026.xlsx — y el módulo pasó de cubrir 2025-2026 a cubrir 2022, 2023, 2024, 2025 y 2026 (2026 parcial, Enero-Septiembre).",
+        "Morbilidad: el tablero se dividió en Bloque 1 (Casos/Territorio/Instituciones: Año, Jurisdicción, Municipio, Institución, Unidad médica —nueva—, Mes, Grupo de edad, Sexo) y Bloque 2 (Padecimientos: Año, Epi-Clave, Padecimiento/CIE-10, Mes, Semana epidemiológica, Grupo de edad, Sexo), con filtros, gráfica/tabla principal y Panorama completamente separados entre sí — la base de Padecimientos no tiene Municipio/Jurisdicción/Institución/Unidad médica, así que NO se fabricó ningún cruce entre Padecimiento y esas dimensiones.",
+        "Morbilidad: Tasa (Casos/Población×100,000) sigue disponible únicamente dentro del Bloque 1 y únicamente para Municipio, Jurisdicción sanitaria y Grupo de edad — se deshabilitó explícitamente para Institución, Unidad médica y Sexo (varias instituciones/unidades médicas conviven en el mismo municipio, así que sumar población por esa dimensión sobrecontaría). El Bloque 2 no ofrece Tasa ni Población bajo ninguna dimensión. El grupo de edad 'De edad desconocida' (sin fila de población) muestra Tasa como 'No aplica', nunca 0%.",
+        "Morbilidad: el buscador de Padecimiento/CIE-10/Epi-clave se conservó sin cambios de lógica (CIE-10 se sigue extrayendo del propio texto de Padecimiento) y ahora sólo filtra el Bloque 2. Se agregó Unidad médica (383 valores) como filtro y dimensión nueva del Bloque 1 — antes no existía en ninguna base del proyecto.",
+        "Morbilidad: se eliminó el bundle 'temporal' separado (ya no es necesario: la nueva base de Casos Históricos trae Mes+Sexo+Grupo de edad+Municipio+Institución+Unidad médica juntos en cada fila). El reporte PDF y su Vista previa (zoom, paginación, imagen grande + tabla en página siguiente cuando no caben juntas) se conservaron sin cambios de comportamiento, con secciones separadas por bloque.",
+        "Validación obligatoria: total general verificado 3,551,200 casos (idéntico en la base de Casos Históricos y en la base de Padecimientos), desglose por año 2022=794,108 / 2023=725,978 / 2024=729,037 / 2025=779,592 / 2026=522,485 — verificado contra los archivos crudos, contra los bundles generados y en navegador real, antes de entregar.",
+      ],
+    },
     {
       version: "2.5.0",
       fecha: "2026-09-25",

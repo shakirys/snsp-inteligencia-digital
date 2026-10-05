@@ -1,0 +1,24 @@
+{
+  "name": "work",
+  "version": "1.0.0",
+  "description": "**Datos que impulsan decisiones**",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "chart.js": "^4.4.4",
+    "jsdom": "^30.0.1",
+    "jspdf": "^2.5.2",
+    "jspdf-autotable": "^3.8.4",
+    "pdf-parse": "^2.4.5",
+    "playwright": "^1.63.0",
+    "xlsx": "^0.18.5"
+  }
+}

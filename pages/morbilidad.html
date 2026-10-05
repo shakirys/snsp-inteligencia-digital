@@ -10,6 +10,19 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
+<style>
+  .morb-tabs { display:flex; gap:var(--sp-2); margin-bottom:var(--sp-4); border-bottom:1px solid var(--border-strong); }
+  .morb-tab-btn {
+    appearance:none; border:none; background:transparent; cursor:pointer;
+    padding:10px 18px; font-size:var(--fs-body); font-weight:600; color:var(--text-secondary);
+    border-bottom:3px solid transparent; margin-bottom:-1px;
+  }
+  .morb-tab-btn.is-active { color:var(--c-vino); border-bottom-color:var(--c-vino); }
+  .morb-anio-parcial-aviso {
+    font-size:var(--fs-caption); color:var(--text-secondary); background:var(--bg-subtle,#f4ede7);
+    border:1px solid var(--border-strong); border-radius:var(--radius-sm); padding:8px 12px; margin-bottom:var(--sp-3);
+  }
+</style>
 </head>
 <body>
 
@@ -19,193 +32,322 @@
     <header class="topbar" id="topbar"></header>
     <main class="app-content">
 
-      <div class="card mb-4" style="padding:var(--sp-4);">
-        <div class="section-header" style="margin-bottom:var(--sp-3);">
-          <div>
-            <div class="section-header__title">Buscar padecimiento</div>
-            <div class="section-header__subtitle">Opcional — acota todo el tablero de abajo a un padecimiento específico. Padecimiento, CIE-10 y Epi-clave están sincronizados: elegir uno en cualquiera de los 3 completa los otros 2.</div>
-          </div>
-        </div>
-        <div class="flex gap-3 mb-2" style="flex-wrap:wrap;">
-          <div class="cie10-search-wrap" id="cie10-search-wrap" style="flex:2 1 260px;">
-            <label for="cie10-search" style="display:block; font-size:var(--fs-caption); color:var(--text-secondary); margin-bottom:4px;">Padecimiento</label>
-            <input type="text" id="cie10-search" placeholder="Ej. &quot;tumor maligno de la mama&quot;…" autocomplete="off">
-            <div class="cie10-resultados" id="cie10-resultados"></div>
-          </div>
-          <div class="cie10-search-wrap" id="cie10-search-wrap-cie10" style="flex:1 1 160px;">
-            <label for="cie10-search-cie10" style="display:block; font-size:var(--fs-caption); color:var(--text-secondary); margin-bottom:4px;">CIE-10</label>
-            <input type="text" id="cie10-search-cie10" placeholder="Ej. C50, N87…" autocomplete="off">
-            <div class="cie10-resultados" id="cie10-resultados-cie10"></div>
-          </div>
-          <div class="cie10-search-wrap" id="cie10-search-wrap-epiclave" style="flex:1 1 160px;">
-            <label for="cie10-search-epiclave" style="display:block; font-size:var(--fs-caption); color:var(--text-secondary); margin-bottom:4px;">Epi-clave</label>
-            <input type="text" id="cie10-search-epiclave" placeholder="Ej. 119" autocomplete="off">
-            <div class="cie10-resultados" id="cie10-resultados-epiclave"></div>
-          </div>
-        </div>
-        <div class="seleccion-actual mt-2" id="seleccion-actual"></div>
+      <div class="morb-anio-parcial-aviso">
+        Datos estatales 2022–2026. <strong>2026 es un año parcial</strong> (Enero–Septiembre, al corte de carga disponible): no debe interpretarse como una caída anual real frente a 2022-2025.
       </div>
 
       <div class="card mb-4" style="padding:var(--sp-4);">
         <div class="section-header" style="margin-bottom:var(--sp-3);">
           <div>
-            <div class="section-header__title">Analizar</div>
-            <div class="section-header__subtitle">BASE_CASOS_2025_2026 relacionada con BASE_POBLACION_2025_2026 por Año + Municipio + Grupo de edad — misma fuente y cálculo ya validados en Cargar datos</div>
+            <div class="section-header__title">Año</div>
+            <div class="section-header__subtitle">Aplica a los dos bloques de abajo — comparar 2 o más años activa automáticamente las vistas comparativas en ambos.</div>
           </div>
         </div>
-        <div class="flex gap-3 mb-3" style="flex-wrap:wrap;">
-          <div class="field" style="max-width:240px;">
-            <label for="morb-select-medida">Analizar</label>
-            <select id="morb-select-medida">
-              <option value="casos">Casos</option>
-              <option value="poblacion">Población</option>
-              <option value="tasa">Tasa (por 100,000 habitantes)</option>
-            </select>
-          </div>
-          <div class="field" style="max-width:240px;">
-            <label for="morb-select-dim">Por</label>
-            <select id="morb-select-dim">
-              <option value="padecimiento">Padecimiento</option>
-              <option value="municipio">Municipio</option>
-              <option value="jurisdiccion">Jurisdicción sanitaria</option>
-              <option value="grupo_edad">Grupo de edad</option>
-            </select>
-          </div>
-          <div class="field carga-anio-field" style="max-width:280px;">
-            <label>Año <span class="text-muted" style="font-weight:400;">(comparar)</span></label>
-            <div class="carga-anio-multiselect" id="morb-anio-multiselect">
-              <div class="carga-anio-chips" id="morb-anio-chips"></div>
-              <button type="button" class="carga-anio-toggle" id="morb-anio-toggle">+ Año</button>
-              <div class="carga-anio-menu" id="morb-anio-menu" hidden></div>
-            </div>
-          </div>
-          <div class="field carga-anio-field" style="max-width:240px;">
-            <label>Mes <span class="text-muted" style="font-weight:400;">(uno, varios o todos)</span></label>
-            <div class="carga-anio-multiselect" id="morb-mes-multiselect">
-              <div class="carga-anio-chips" id="morb-mes-chips"></div>
-              <button type="button" class="carga-anio-toggle" id="morb-mes-toggle">+ Mes</button>
-              <div class="carga-anio-menu" id="morb-mes-menu" hidden></div>
-            </div>
-          </div>
-          <div class="field carga-anio-field" style="max-width:260px;">
-            <label>Semana epidemiológica <span class="text-muted" style="font-weight:400;">(una, varias o todas)</span></label>
-            <div class="carga-anio-multiselect" id="morb-semana-multiselect">
-              <div class="carga-anio-chips" id="morb-semana-chips"></div>
-              <button type="button" class="carga-anio-toggle" id="morb-semana-toggle">+ Semana</button>
-              <div class="carga-anio-menu" id="morb-semana-menu" hidden></div>
-            </div>
+        <div class="field carga-anio-field" style="max-width:420px;">
+          <label>Año <span class="text-muted" style="font-weight:400;">(comparar)</span></label>
+          <div class="carga-anio-multiselect" id="morb-anio-multiselect">
+            <div class="carga-anio-chips" id="morb-anio-chips"></div>
+            <button type="button" class="carga-anio-toggle" id="morb-anio-toggle">+ Año</button>
+            <div class="carga-anio-menu" id="morb-anio-menu" hidden></div>
           </div>
         </div>
-        <p class="text-muted" style="font-size:var(--fs-caption); margin:0 0 10px;">
-          Institución sólo está disponible como filtro (no como "Por"), a petición explícita. Mes y Semana epidemiológica permiten elegir uno, varios o todos los valores, y son coherentes entre sí y con Año: al elegir alguno, el otro sólo ofrece las opciones compatibles con esa selección.
-        </p>
-        <div class="filter-bar" id="filter-bar"></div>
+      </div>
+
+      <div class="morb-tabs">
+        <button type="button" class="morb-tab-btn is-active" id="morb-tab-bloque1">Bloque 1 — Casos, Territorio e Instituciones</button>
+        <button type="button" class="morb-tab-btn" id="morb-tab-bloque2">Bloque 2 — Padecimientos</button>
       </div>
 
       <div style="display:flex; justify-content:flex-end; margin-bottom:var(--sp-3);">
-        <button type="button" class="btn btn-primary btn-sm" id="btn-morb-abrir-pdf">Generar reporte PDF</button>
+        <button type="button" class="btn btn-primary btn-sm" id="btn-morb-abrir-pdf">Generar reporte PDF (Bloque 1 + Bloque 2)</button>
       </div>
 
-      <div class="indicator-grid indicator-grid--compact mb-4" id="kpi-grid"></div>
-
-      <div class="panel-grid">
-        <section class="card col-span-12">
-          <div class="section-header">
+      <!-- ============================= BLOQUE 1 ============================= -->
+      <div id="morb-bloque1-panel">
+        <div class="card mb-4" style="padding:var(--sp-4);">
+          <div class="section-header" style="margin-bottom:var(--sp-3);">
             <div>
-              <div class="section-header__title">Gráfica</div>
-              <div class="section-header__subtitle" id="morb-subt-principal">Se actualiza automáticamente con Analizar, Por, Año y los filtros</div>
+              <div class="section-header__title">Analizar</div>
+              <div class="section-header__subtitle">BASE_CASOS_HISTORICOS_SUIVE_QRO_2022_2026, relacionada con EXTRACCION_POBLACION_SUIVE_QRO_2022_2026 únicamente por Año + Municipio + Grupo de edad</div>
             </div>
-            <div class="field" style="max-width:160px;">
-              <label for="morb-principal-topn" style="font-size:var(--fs-caption);">Mostrar</label>
-              <select id="morb-principal-topn">
-                <option value="10" selected>Top 10</option>
-                <option value="15">Top 15</option>
-                <option value="20">Top 20</option>
-                <option value="todos">Todos</option>
+          </div>
+          <div class="flex gap-3 mb-3" style="flex-wrap:wrap;">
+            <div class="field" style="max-width:260px;">
+              <label for="morb-h-select-medida">Analizar</label>
+              <select id="morb-h-select-medida">
+                <option value="casos">Casos</option>
+                <option value="poblacion">Población</option>
+                <option value="tasa">Tasa (por 100,000 habitantes)</option>
               </select>
             </div>
-          </div>
-          <div id="morb-chart-wrap" style="height:520px;"><canvas id="morb-chart"></canvas></div>
-        </section>
-
-        <section class="card col-span-12">
-          <div class="section-header">
-            <div>
-              <div class="section-header__title">Tabla resumen</div>
-              <div class="section-header__subtitle">Categorías ordenadas de mayor a menor</div>
+            <div class="field" style="max-width:240px;">
+              <label for="morb-h-select-dim">Por</label>
+              <select id="morb-h-select-dim">
+                <option value="municipio">Municipio</option>
+                <option value="jurisdiccion">Jurisdicción sanitaria</option>
+                <option value="institucion">Institución</option>
+                <option value="unidad_medica">Unidad médica</option>
+                <option value="grupo_edad">Grupo de edad</option>
+                <option value="sexo">Sexo</option>
+              </select>
+            </div>
+            <div class="field carga-anio-field" style="max-width:240px;">
+              <label>Mes <span class="text-muted" style="font-weight:400;">(uno, varios o todos)</span></label>
+              <div class="carga-anio-multiselect" id="morb-h-mes-multiselect">
+                <div class="carga-anio-chips" id="morb-h-mes-chips"></div>
+                <button type="button" class="carga-anio-toggle" id="morb-h-mes-toggle">+ Mes</button>
+                <div class="carga-anio-menu" id="morb-h-mes-menu" hidden></div>
+              </div>
             </div>
           </div>
-          <div class="table-wrap">
-            <table>
-              <thead id="morb-tabla-head"><tr><th>#</th><th>Categoría</th><th>Valor</th></tr></thead>
-              <tbody id="morb-tabla-body"></tbody>
-            </table>
-          </div>
-          <p class="text-muted mt-2" id="morb-tabla-count" style="font-size:var(--fs-caption);"></p>
-        </section>
-      </div>
+          <p class="text-muted" style="font-size:var(--fs-caption); margin:0 0 10px;">
+            Tasa (por 100,000 hab.) sólo está disponible para Municipio, Jurisdicción sanitaria y Grupo de edad: la base de población no se desagrega por Institución, Unidad médica ni Sexo, así que calcular una tasa con esas dimensiones sobrecontaría población real — se deshabilita a propósito en vez de mostrar un número fabricado. Esta base no incluye Padecimiento: ese análisis vive en el Bloque 2.
+          </p>
+          <div class="filter-bar" id="filter-bar-h"></div>
+        </div>
 
-      <div class="section-header mt-4" style="margin-bottom:var(--sp-3);">
-        <div>
-          <div class="section-header__title">Panorama de Casos</div>
-          <div class="section-header__subtitle">Siempre en Casos (no Población/Tasa) — responden a los mismos filtros, buscador y Año que el resto del tablero. Cuando 2025 y 2026 están seleccionados, se muestran comparativas entre ambos años.</div>
+        <div class="indicator-grid indicator-grid--compact mb-4" id="kpi-grid-h"></div>
+
+        <div class="panel-grid">
+          <section class="card col-span-12">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Gráfica</div>
+                <div class="section-header__subtitle" id="morb-h-subt-principal">Se actualiza automáticamente con Analizar, Por, Año y los filtros</div>
+              </div>
+              <div class="field" style="max-width:160px;">
+                <label for="morb-h-principal-topn" style="font-size:var(--fs-caption);">Mostrar</label>
+                <select id="morb-h-principal-topn">
+                  <option value="10">Top 10</option>
+                  <option value="15">Top 15</option>
+                  <option value="20" selected>Top 20</option>
+                  <option value="todos">Todos</option>
+                </select>
+              </div>
+            </div>
+            <div id="morb-h-chart-wrap" style="height:520px;"><canvas id="morb-h-chart"></canvas></div>
+          </section>
+
+          <section class="card col-span-12">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Tabla resumen</div>
+                <div class="section-header__subtitle">Categorías ordenadas de mayor a menor — "No aplica" cuando no existe un denominador de población real para esa fila</div>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead id="morb-h-tabla-head"><tr><th>#</th><th>Categoría</th><th>Valor</th></tr></thead>
+                <tbody id="morb-h-tabla-body"></tbody>
+              </table>
+            </div>
+            <p class="text-muted mt-2" id="morb-h-tabla-count" style="font-size:var(--fs-caption);"></p>
+          </section>
+        </div>
+
+        <div class="section-header mt-4" style="margin-bottom:var(--sp-3);">
+          <div>
+            <div class="section-header__title">Panorama de Casos</div>
+            <div class="section-header__subtitle">Siempre en Casos (no Población/Tasa) — responden a los mismos filtros y Año que el resto del Bloque 1. Con 2 o más años seleccionados se muestran comparativas entre ellos.</div>
+          </div>
+        </div>
+
+        <div class="panel-grid">
+          <section class="card col-span-6">
+            <div class="section-header"><div><div class="section-header__title">Casos por municipio</div><div class="section-header__subtitle" id="morb-h-subt-municipio">Los 18 municipios, incluidos los que no registran casos en la selección</div></div></div>
+            <div id="morb-h-wrap-municipio" style="height:520px;"><canvas id="morb-h-chart-municipio"></canvas></div>
+          </section>
+
+          <section class="card col-span-6">
+            <div class="section-header"><div><div class="section-header__title">Casos por jurisdicción sanitaria</div><div class="section-header__subtitle" id="morb-h-subt-jurisdiccion"></div></div></div>
+            <div id="morb-h-wrap-jurisdiccion" style="height:380px;"><canvas id="morb-h-chart-jurisdiccion"></canvas></div>
+          </section>
+
+          <section class="card col-span-6">
+            <div class="section-header"><div><div class="section-header__title">Casos por institución</div><div class="section-header__subtitle">Sólo Casos: varias instituciones conviven en el mismo municipio, así que aquí no se calcula Tasa</div></div></div>
+            <div id="morb-h-wrap-institucion" style="height:420px;"><canvas id="morb-h-chart-institucion"></canvas></div>
+          </section>
+
+          <section class="card col-span-6">
+            <div class="section-header"><div><div class="section-header__title">Casos por unidad médica</div><div class="section-header__subtitle" id="morb-h-subt-unidadmedica">Dimensión nueva en esta base — sólo Casos, nunca Tasa</div></div></div>
+            <div id="morb-h-wrap-unidadmedica" style="height:520px;"><canvas id="morb-h-chart-unidadmedica"></canvas></div>
+          </section>
+
+          <section class="card col-span-6">
+            <div class="section-header"><div><div class="section-header__title">Casos por grupo de edad</div><div class="section-header__subtitle">Todos los grupos de edad de la selección vigente</div></div></div>
+            <div id="morb-h-wrap-grupoedad" style="height:420px;"><canvas id="morb-h-chart-grupoedad"></canvas></div>
+          </section>
+
+          <section class="card col-span-6">
+            <div class="section-header"><div><div class="section-header__title">Casos por sexo</div><div class="section-header__subtitle" id="morb-h-subt-sexo"></div></div></div>
+            <div id="morb-h-wrap-sexo" style="height:280px;"><canvas id="morb-h-chart-sexo"></canvas></div>
+          </section>
+
+          <section class="card col-span-12">
+            <div class="section-header"><div><div class="section-header__title">Tendencia por año/mes</div><div class="section-header__subtitle" id="morb-h-subt-tendencia"></div></div></div>
+            <div id="morb-h-wrap-tendencia" style="height:360px;"><canvas id="morb-h-chart-tendencia"></canvas></div>
+          </section>
+
+          <section class="card col-span-12">
+            <div class="section-header"><div><div class="section-header__title">Comparativo por mes y año</div><div class="section-header__subtitle" id="morb-h-subt-mesanio"></div></div></div>
+            <div id="morb-h-wrap-mesanio" style="height:400px;"><canvas id="morb-h-chart-mesanio"></canvas></div>
+          </section>
         </div>
       </div>
 
-      <div class="panel-grid" id="morb-panorama-grid">
-        <section class="card col-span-6">
-          <div class="section-header"><div><div class="section-header__title">Casos por municipio</div><div class="section-header__subtitle" id="morb-subt-municipio">Los 18 municipios, incluidos los que no registran casos en la selección</div></div></div>
-          <div id="morb-wrap-municipio" style="height:520px;"><canvas id="morb-chart-municipio"></canvas></div>
-        </section>
-
-        <section class="card col-span-6">
-          <div class="section-header"><div><div class="section-header__title">Casos por jurisdicción sanitaria</div><div class="section-header__subtitle" id="morb-subt-jurisdiccion"></div></div></div>
-          <div id="morb-wrap-jurisdiccion" style="height:380px;"><canvas id="morb-chart-jurisdiccion"></canvas></div>
-        </section>
-
-        <section class="card col-span-6">
-          <div class="section-header"><div><div class="section-header__title">Casos por institución</div><div class="section-header__subtitle">Sólo Casos: la población no está desagregada por institución, por lo que aquí no se calcula Tasa</div></div></div>
-          <div id="morb-wrap-institucion" style="height:420px;"><canvas id="morb-chart-institucion"></canvas></div>
-        </section>
-
-        <section class="card col-span-6">
-          <div class="section-header"><div><div class="section-header__title">Casos por grupo de edad</div><div class="section-header__subtitle">Todos los grupos de edad de la selección vigente</div></div></div>
-          <div id="morb-wrap-grupoedad" style="height:420px;"><canvas id="morb-chart-grupoedad"></canvas></div>
-        </section>
-
-        <section class="card col-span-6">
-          <div class="section-header"><div><div class="section-header__title">Casos por sexo</div><div class="section-header__subtitle" id="morb-subt-sexo"></div></div></div>
-          <div id="morb-wrap-sexo" style="height:280px;"><canvas id="morb-chart-sexo"></canvas></div>
-        </section>
-
-        <section class="card col-span-6">
-          <div class="section-header">
+      <!-- ============================= BLOQUE 2 ============================= -->
+      <div id="morb-bloque2-panel" hidden>
+        <div class="card mb-4" style="padding:var(--sp-4);">
+          <div class="section-header" style="margin-bottom:var(--sp-3);">
             <div>
-              <div class="section-header__title">Padecimiento(s) dentro de la selección</div>
-              <div class="section-header__subtitle" id="morb-subt-padecimientos">Principales padecimientos dentro de los filtros y la búsqueda vigentes</div>
-            </div>
-            <div class="field" style="max-width:160px;">
-              <label for="morb-padecimientos-topn" style="font-size:var(--fs-caption);">Mostrar</label>
-              <select id="morb-padecimientos-topn">
-                <option value="10" selected>Top 10</option>
-                <option value="15">Top 15</option>
-                <option value="20">Top 20</option>
-                <option value="todos">Todos</option>
-              </select>
+              <div class="section-header__title">Buscar padecimiento</div>
+              <div class="section-header__subtitle">Opcional — acota el Bloque 2 a un padecimiento específico. Padecimiento, CIE-10 y Epi-clave están sincronizados: elegir uno en cualquiera de los 3 completa los otros 2. Esta búsqueda NUNCA filtra el Bloque 1: la base de Padecimientos no tiene Municipio, Jurisdicción, Institución ni Unidad médica.</div>
             </div>
           </div>
-          <div id="morb-wrap-padecimientos" style="height:420px;"><canvas id="morb-chart-padecimientos"></canvas></div>
-        </section>
+          <div class="flex gap-3 mb-2" style="flex-wrap:wrap;">
+            <div class="cie10-search-wrap" id="cie10-search-wrap" style="flex:2 1 260px;">
+              <label for="cie10-search" style="display:block; font-size:var(--fs-caption); color:var(--text-secondary); margin-bottom:4px;">Padecimiento</label>
+              <input type="text" id="cie10-search" placeholder="Ej. &quot;fiebre tifoidea&quot;…" autocomplete="off">
+              <div class="cie10-resultados" id="cie10-resultados"></div>
+            </div>
+            <div class="cie10-search-wrap" id="cie10-search-wrap-cie10" style="flex:1 1 160px;">
+              <label for="cie10-search-cie10" style="display:block; font-size:var(--fs-caption); color:var(--text-secondary); margin-bottom:4px;">CIE-10</label>
+              <input type="text" id="cie10-search-cie10" placeholder="Ej. A01, B77…" autocomplete="off">
+              <div class="cie10-resultados" id="cie10-resultados-cie10"></div>
+            </div>
+            <div class="cie10-search-wrap" id="cie10-search-wrap-epiclave" style="flex:1 1 160px;">
+              <label for="cie10-search-epiclave" style="display:block; font-size:var(--fs-caption); color:var(--text-secondary); margin-bottom:4px;">Epi-clave</label>
+              <input type="text" id="cie10-search-epiclave" placeholder="Ej. 07" autocomplete="off">
+              <div class="cie10-resultados" id="cie10-resultados-epiclave"></div>
+            </div>
+          </div>
+          <div class="seleccion-actual mt-2" id="seleccion-actual"></div>
+        </div>
 
-        <section class="card col-span-12">
-          <div class="section-header"><div><div class="section-header__title">Tendencia por año/mes</div><div class="section-header__subtitle" id="morb-subt-tendencia"></div></div></div>
-          <div id="morb-wrap-tendencia" style="height:360px;"><canvas id="morb-chart-tendencia"></canvas></div>
-        </section>
+        <div class="card mb-4" style="padding:var(--sp-4);">
+          <div class="section-header" style="margin-bottom:var(--sp-3);">
+            <div>
+              <div class="section-header__title">Analizar</div>
+              <div class="section-header__subtitle">BASE_PADECIMIENTOS_SUIVE_QRO_2022_2026 — siempre Casos. Sin Población ni Tasa: esta base no tiene Municipio, así que no existe un denominador de población válido para ningún padecimiento.</div>
+            </div>
+          </div>
+          <div class="flex gap-3 mb-3" style="flex-wrap:wrap;">
+            <div class="field" style="max-width:240px;">
+              <label for="morb-p-select-dim">Por</label>
+              <select id="morb-p-select-dim">
+                <option value="padecimiento">Padecimiento</option>
+                <option value="grupo_edad">Grupo de edad</option>
+                <option value="sexo">Sexo</option>
+              </select>
+            </div>
+            <div class="field carga-anio-field" style="max-width:240px;">
+              <label>Mes <span class="text-muted" style="font-weight:400;">(uno, varios o todos)</span></label>
+              <div class="carga-anio-multiselect" id="morb-p-mes-multiselect">
+                <div class="carga-anio-chips" id="morb-p-mes-chips"></div>
+                <button type="button" class="carga-anio-toggle" id="morb-p-mes-toggle">+ Mes</button>
+                <div class="carga-anio-menu" id="morb-p-mes-menu" hidden></div>
+              </div>
+            </div>
+            <div class="field carga-anio-field" style="max-width:260px;">
+              <label>Semana epidemiológica <span class="text-muted" style="font-weight:400;">(una, varias o todas)</span></label>
+              <div class="carga-anio-multiselect" id="morb-p-semana-multiselect">
+                <div class="carga-anio-chips" id="morb-p-semana-chips"></div>
+                <button type="button" class="carga-anio-toggle" id="morb-p-semana-toggle">+ Semana</button>
+                <div class="carga-anio-menu" id="morb-p-semana-menu" hidden></div>
+              </div>
+            </div>
+          </div>
+          <p class="text-muted" style="font-size:var(--fs-caption); margin:0;">
+            Este bloque no tiene Municipio, Jurisdicción, Institución ni Unidad médica: no es posible (ni se intenta) cruzar un padecimiento con esas dimensiones. Mes y Semana epidemiológica son coherentes entre sí y con Año.
+          </p>
+        </div>
 
-        <section class="card col-span-12">
-          <div class="section-header"><div><div class="section-header__title">Comparativo por mes y año</div><div class="section-header__subtitle" id="morb-subt-mesanio"></div></div></div>
-          <div id="morb-wrap-mesanio" style="height:400px;"><canvas id="morb-chart-mesanio"></canvas></div>
-        </section>
+        <div class="indicator-grid indicator-grid--compact mb-4" id="kpi-grid-p"></div>
+
+        <div class="panel-grid">
+          <section class="card col-span-12">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Gráfica</div>
+                <div class="section-header__subtitle" id="morb-p-subt-principal">Se actualiza automáticamente con Por, Año, Mes/Semana y la búsqueda</div>
+              </div>
+              <div class="field" style="max-width:160px;">
+                <label for="morb-p-principal-topn" style="font-size:var(--fs-caption);">Mostrar</label>
+                <select id="morb-p-principal-topn">
+                  <option value="10" selected>Top 10</option>
+                  <option value="15">Top 15</option>
+                  <option value="20">Top 20</option>
+                  <option value="todos">Todos</option>
+                </select>
+              </div>
+            </div>
+            <div id="morb-p-chart-wrap" style="height:520px;"><canvas id="morb-p-chart"></canvas></div>
+          </section>
+
+          <section class="card col-span-12">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Tabla resumen</div>
+                <div class="section-header__subtitle">Categorías ordenadas de mayor a menor</div>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead id="morb-p-tabla-head"><tr><th>#</th><th>Categoría</th><th>Casos</th></tr></thead>
+                <tbody id="morb-p-tabla-body"></tbody>
+              </table>
+            </div>
+            <p class="text-muted mt-2" id="morb-p-tabla-count" style="font-size:var(--fs-caption);"></p>
+          </section>
+        </div>
+
+        <div class="section-header mt-4" style="margin-bottom:var(--sp-3);">
+          <div>
+            <div class="section-header__title">Panorama de Padecimientos</div>
+            <div class="section-header__subtitle">Siempre en Casos — responden a los mismos filtros, buscador y Año que el resto del Bloque 2.</div>
+          </div>
+        </div>
+
+        <div class="panel-grid">
+          <section class="card col-span-12">
+            <div class="section-header">
+              <div>
+                <div class="section-header__title">Padecimiento(s) dentro de la selección</div>
+                <div class="section-header__subtitle" id="morb-p-subt-padecimientos">Principales padecimientos dentro de la búsqueda vigente</div>
+              </div>
+              <div class="field" style="max-width:160px;">
+                <label for="morb-p-padecimientos-topn" style="font-size:var(--fs-caption);">Mostrar</label>
+                <select id="morb-p-padecimientos-topn">
+                  <option value="10" selected>Top 10</option>
+                  <option value="15">Top 15</option>
+                  <option value="20">Top 20</option>
+                  <option value="todos">Todos</option>
+                </select>
+              </div>
+            </div>
+            <div id="morb-p-wrap-padecimientos" style="height:520px;"><canvas id="morb-p-chart-padecimientos"></canvas></div>
+          </section>
+
+          <section class="card col-span-6">
+            <div class="section-header"><div><div class="section-header__title">Casos por grupo de edad</div><div class="section-header__subtitle" id="morb-p-subt-grupoedad"></div></div></div>
+            <div id="morb-p-wrap-grupoedad" style="height:420px;"><canvas id="morb-p-chart-grupoedad"></canvas></div>
+          </section>
+
+          <section class="card col-span-6">
+            <div class="section-header"><div><div class="section-header__title">Casos por sexo</div><div class="section-header__subtitle" id="morb-p-subt-sexo"></div></div></div>
+            <div id="morb-p-wrap-sexo" style="height:280px;"><canvas id="morb-p-chart-sexo"></canvas></div>
+          </section>
+
+          <section class="card col-span-12">
+            <div class="section-header"><div><div class="section-header__title">Tendencia por año/mes</div><div class="section-header__subtitle" id="morb-p-subt-tendencia"></div></div></div>
+            <div id="morb-p-wrap-tendencia" style="height:360px;"><canvas id="morb-p-chart-tendencia"></canvas></div>
+          </section>
+
+          <section class="card col-span-12">
+            <div class="section-header"><div><div class="section-header__title">Comparativo por mes y año</div><div class="section-header__subtitle" id="morb-p-subt-mesanio"></div></div></div>
+            <div id="morb-p-wrap-mesanio" style="height:400px;"><canvas id="morb-p-chart-mesanio"></canvas></div>
+          </section>
+        </div>
       </div>
 
       <div class="methodology-footer">
@@ -221,7 +363,7 @@
   <div class="modal-box modal-box--wide">
     <h3>Generar reporte PDF</h3>
     <p class="text-muted" style="font-size:var(--fs-body-sm); margin:-8px 0 0;">
-      Incluye únicamente las secciones que marques abajo, respetando los filtros, la búsqueda y el/los Año(s) activos en el tablero.
+      Incluye únicamente las secciones que marques abajo, respetando los filtros, la búsqueda y el/los Año(s) activos en cada bloque. El Bloque 1 y el Bloque 2 nunca se mezclan dentro de una misma sección.
     </p>
     <form id="form-morb-pdf">
       <div class="field">
@@ -231,16 +373,25 @@
           <button type="button" class="btn btn-ghost btn-sm" id="btn-morb-pdf-limpiar">Limpiar</button>
         </div>
         <div id="morb-pdf-secciones" style="max-height:280px; overflow-y:auto; border:1px solid var(--border-strong); border-radius:var(--radius-sm); padding:var(--sp-2);">
-          <label class="carga-anio-opcion"><input type="checkbox" name="morb-pdf-seccion" value="kpi" checked> Indicadores</label>
-          <label class="carga-anio-opcion"><input type="checkbox" name="morb-pdf-seccion" value="principal" checked> Gráfica y tabla principal (Analizar/Por)</label>
+          <p class="text-muted" style="font-size:var(--fs-caption); margin:2px 0 6px; font-weight:600;">Bloque 1 — Casos, Territorio e Instituciones</p>
+          <label class="carga-anio-opcion"><input type="checkbox" name="morb-pdf-seccion" value="kpi_h" checked> Indicadores</label>
+          <label class="carga-anio-opcion"><input type="checkbox" name="morb-pdf-seccion" value="principal_h" checked> Gráfica y tabla principal (Analizar/Por)</label>
           <label class="carga-anio-opcion"><input type="checkbox" name="morb-pdf-seccion" value="municipio" checked> Casos por municipio</label>
           <label class="carga-anio-opcion"><input type="checkbox" name="morb-pdf-seccion" value="jurisdiccion" checked> Casos por jurisdicción sanitaria</label>
           <label class="carga-anio-opcion"><input type="checkbox" name="morb-pdf-seccion" value="institucion" checked> Casos por institución</label>
+          <label class="carga-anio-opcion"><input type="checkbox" name="morb-pdf-seccion" value="unidadmedica"> Casos por unidad médica</label>
           <label class="carga-anio-opcion"><input type="checkbox" name="morb-pdf-seccion" value="grupoedad" checked> Casos por grupo de edad</label>
           <label class="carga-anio-opcion"><input type="checkbox" name="morb-pdf-seccion" value="sexo" checked> Casos por sexo</label>
-          <label class="carga-anio-opcion"><input type="checkbox" name="morb-pdf-seccion" value="padecimientos" checked> Padecimiento(s) dentro de la selección</label>
           <label class="carga-anio-opcion"><input type="checkbox" name="morb-pdf-seccion" value="tendencia" checked> Tendencia por año/mes</label>
           <label class="carga-anio-opcion"><input type="checkbox" name="morb-pdf-seccion" value="mesanio" checked> Comparativo por mes y año</label>
+          <p class="text-muted" style="font-size:var(--fs-caption); margin:10px 0 6px; font-weight:600;">Bloque 2 — Padecimientos</p>
+          <label class="carga-anio-opcion"><input type="checkbox" name="morb-pdf-seccion" value="kpi_p" checked> Indicadores</label>
+          <label class="carga-anio-opcion"><input type="checkbox" name="morb-pdf-seccion" value="principal_p" checked> Gráfica y tabla principal (Por)</label>
+          <label class="carga-anio-opcion"><input type="checkbox" name="morb-pdf-seccion" value="padecimientos" checked> Padecimiento(s) dentro de la selección</label>
+          <label class="carga-anio-opcion"><input type="checkbox" name="morb-pdf-seccion" value="grupoedad_p"> Casos por grupo de edad</label>
+          <label class="carga-anio-opcion"><input type="checkbox" name="morb-pdf-seccion" value="sexo_p"> Casos por sexo</label>
+          <label class="carga-anio-opcion"><input type="checkbox" name="morb-pdf-seccion" value="tendencia_p" checked> Tendencia por año/mes</label>
+          <label class="carga-anio-opcion"><input type="checkbox" name="morb-pdf-seccion" value="mesanio_p" checked> Comparativo por mes y año</label>
         </div>
       </div>
       <div class="field">
@@ -254,9 +405,6 @@
       </div>
     </form>
 
-    <!-- ACT14: paso de Vista previa antes de generar el PDF de verdad —
-         resumen de lo que va a incluir (secciones, periodo, filtros,
-         Análisis/Observaciones), con Volver a editar / Generar PDF. -->
     <div id="morb-pdf-vista-previa" hidden>
       <h4 style="margin:0 0 var(--sp-2);">Vista previa del reporte</h4>
       <p class="text-muted" style="font-size:var(--fs-body-sm); margin:-4px 0 var(--sp-2);">Revisa lo que va a incluir el PDF antes de generarlo.</p>
@@ -288,9 +436,9 @@
 <script src="../services/dataService.js"></script>
 <script src="../services/realDataService.js"></script>
 <script src="../services/cargaDataService.js"></script>
-<script src="../data/real/morbilidad_casos_2025_2026.js"></script>
-<script src="../data/real/morbilidad_poblacion_2025_2026.js"></script>
-<script src="../data/real/morbilidad_temporal_2025_2026.js"></script>
+<script src="../data/real/morbilidad_historico_2022_2026.js"></script>
+<script src="../data/real/morbilidad_padecimientos_2022_2026.js"></script>
+<script src="../data/real/morbilidad_poblacion_2022_2026.js"></script>
 <script src="../components/sidebar.js"></script>
 <script src="../components/topbar.js"></script>
 <script src="../components/indicatorCard.js"></script>

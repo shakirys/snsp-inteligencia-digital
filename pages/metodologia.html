@@ -68,53 +68,65 @@
 
         <hr style="border:none; border-top:1px solid var(--border-subtle); margin:var(--sp-5) 0;">
 
-        <h2 style="margin-bottom:var(--sp-4)">Morbilidad — estado de Querétaro</h2>
+        <h2 style="margin-bottom:var(--sp-4)">Morbilidad — estado de Querétaro (2022-2026)</h2>
+
+        <p class="col-text" style="margin-bottom:var(--sp-3);">
+          Desde esta actualización, Morbilidad usa <strong>tres bases independientes</strong> en vez de una sola base unificada: no se cruzan entre sí más allá de lo que sus columnas realmente permiten. El tablero se organiza en dos bloques analíticos separados (Bloque 1 y Bloque 2), más un tercer bloque de Población que sólo actúa como denominador de Tasa dentro del Bloque 1.
+        </p>
 
         <h3 style="font-size:var(--fs-body-lg); margin-bottom:var(--sp-2);">Fuentes de información</h3>
         <table style="width:100%; margin-bottom:var(--sp-5);">
           <thead><tr><th class="col-text">Base</th><th class="col-text">Registros</th><th class="col-text">Columnas usadas</th></tr></thead>
           <tbody>
-            <tr><td class="col-text">BASE_CASOS_2025_2026.xlsx</td><td class="col-text">288,106 filas originales (pre-agregadas a 20,563 combinaciones, misma suma)</td><td class="col-text">Año, Jurisdicción, Municipio, Institución, Grupo de edad, Epi-Clave, Padecimiento (con CIE-10 entre paréntesis), Casos</td></tr>
-            <tr><td class="col-text">BASE_CASOS_2025_2026.xlsx (bundle temporal, misma base)</td><td class="col-text">288,106 filas originales (pre-agregadas distinto: 35,809 combinaciones)</td><td class="col-text">Año, Jurisdicción, Municipio, Institución, Mes, Sexo, Epi-Clave, Casos — sólo para Tendencia por año/mes, comparativo por mes y año y Casos por sexo</td></tr>
-            <tr><td class="col-text">BASE_POBLACION_2025_2026.xlsx</td><td class="col-text">396 filas</td><td class="col-text">Año, Municipio, Grupo de edad, Población — se relaciona con BASE_CASOS por Año + Municipio + Grupo de edad, sin duplicar población</td></tr>
+            <tr><td class="col-text">BASE_CASOS_HISTORICOS_SUIVE_QRO_2022_2026.xlsx (Bloque 1)</td><td class="col-text">291,208 filas, sin reducción por agregación (ya a grano fino)</td><td class="col-text">Año, Jurisdicción, Municipio, Institución, Unidad médica, Mes, Grupo de edad, Sexo, Casos</td></tr>
+            <tr><td class="col-text">BASE_PADECIMIENTOS_SUIVE_QRO_2022_2026_plana.xlsx (Bloque 2)</td><td class="col-text">131,341 filas, sin reducción por agregación</td><td class="col-text">Año, Epi-Clave, Padecimiento (con CIE-10 entre paréntesis), Mes, Semana epidemiológica, Grupo de edad, Sexo, Casos</td></tr>
+            <tr><td class="col-text">EXTRACCION_POBLACION_SUIVE_QRO_2022_2026.xlsx (Bloque 3)</td><td class="col-text">990 filas</td><td class="col-text">Año, Municipio, Grupo de edad, Población — se relaciona ÚNICAMENTE con el Bloque 1, por Año + Municipio + Grupo de edad, sin duplicar población</td></tr>
           </tbody>
         </table>
+        <p class="col-text" style="margin-bottom:var(--sp-3);">
+          Años de referencia: <strong>2022, 2023, 2024, 2025 y 2026</strong>. <strong>2026 es un año parcial</strong> (Enero-Septiembre / semana epidemiológica 01-37 al corte de carga disponible en las tres bases): no debe leerse como una caída anual real frente a 2022-2025. Totales verificados directamente sobre los archivos crudos antes de construir cualquier bundle: 2022 = 794,108; 2023 = 725,978; 2024 = 729,037; 2025 = 779,592; 2026 = 522,485; <strong>total general = 3,551,200 casos</strong>, idéntico en la base de Casos Históricos y en la base de Padecimientos. Las tres bases son exclusivamente del estado de Querétaro: no se comparan ni se combinan con ninguna fuente nacional.
+        </p>
         <p class="col-text" style="margin-bottom:var(--sp-5);">
-          Años de referencia: <strong>2025 y 2026</strong> (los dos años presentes en la base). Es la misma base ya validada en el módulo Cargar datos.
-          La base original, sin modificar, no se expone públicamente (ver <code>data/raw/</code>, vacío en el proyecto entregado). <strong>Esta base es exclusivamente del estado de Querétaro</strong>: no se comparó ni se combinó con ninguna fuente nacional.
-          El "bundle temporal" es la MISMA base BASE_CASOS_2025_2026, agregada aparte (Mes y Sexo en vez de Grupo de edad) para no inflar el bundle principal — ver <code>scripts/build_morbilidad_casos.py</code>.
+          <strong>Regla de separación (no negociable):</strong> la base de Casos Históricos y la base de Padecimientos no comparten ninguna columna de identidad fuera de Año/Mes/Grupo de edad/Sexo, y ninguna de esas cuatro reconstruye, sin inventarla, la relación Padecimiento↔Municipio/Jurisdicción/Institución/Unidad médica que existía en la base unificada 2025-2026. Por eso el Bloque 1 y el Bloque 2 son tableros completamente separados, con su propio conjunto de filtros, su propia gráfica/tabla principal y su propio Panorama — ver <code>scripts/build_morbilidad_historico.py</code> para el detalle verificado.
         </p>
 
         <h3 style="font-size:var(--fs-body-lg); margin-bottom:var(--sp-2);">Variables utilizadas y transformaciones aplicadas</h3>
         <ul class="col-text" style="margin-bottom:var(--sp-5); padding-left:1.2em; list-style:disc;">
-          <li><strong>Municipio, Jurisdicción, Institución, Grupo de edad, Mes, Sexo</strong>: se dejan tal cual vienen en el archivo (incluyendo el prefijo numérico, p. ej. "006 Corregidora" o "01 Enero"), sin renombrar ni canonicalizar — para que el cruce por texto con BASE_POBLACION siga funcionando igual.</li>
-          <li><strong>Código CIE-10</strong>: se extrae del texto entre paréntesis al final de "Padecimiento" (p. ej. de <code>"Tumor maligno de la mama(C50)"</code> se obtiene <code>C50</code>).</li>
-          <li><strong>Población y Tasa</strong>: para cada categoría se junta primero el conjunto de combinaciones ÚNICAS de Año+Municipio+Grupo de edad presentes en las filas de Casos ya filtradas, y sólo con ese conjunto se suma población — nunca por fila de Casos, que trae varias filas por combinación (misma lógica ya validada en Cargar datos).</li>
+          <li><strong>Municipio, Jurisdicción, Institución, Unidad médica, Grupo de edad, Mes, Semana, Sexo</strong>: se dejan tal cual vienen en el archivo (incluyendo el prefijo numérico, p. ej. "006 Corregidora" o "01 Enero"), sin renombrar ni canonicalizar — para que el cruce por texto entre el Bloque 1 y el Bloque 3 siga funcionando igual. Verificado que Municipio↔Jurisdicción es una relación 1 a 1 en el Bloque 1, y que el conjunto de Municipios coincide exactamente entre el Bloque 1 y el Bloque 3.</li>
+          <li><strong>Código CIE-10</strong>: se extrae del texto entre paréntesis al final de "Padecimiento" (p. ej. de <code>"Fiebre tifoidea(A01.0)"</code> se obtiene <code>A01.0</code>), igual lógica que antes. Verificado que Epi-Clave↔Padecimiento es una relación 1 a 1 (167 Epi-Clave únicas). 166 de los 167 padecimientos tienen un código CIE-10 identificable en el texto; el restante trae "S/C" (sin clasificar) en la propia base, no es un error de extracción.</li>
+          <li><strong>Población y Tasa</strong>: para cada categoría del Bloque 1 se junta primero el conjunto de combinaciones ÚNICAS de Año+Municipio+Grupo de edad presentes en las filas de Casos ya filtradas, y sólo con ese conjunto se suma población — nunca por fila de Casos (misma lógica ya validada en Cargar datos, sin cambios). El grupo de edad "De edad desconocida" existe en el Bloque 1 pero no tiene fila de población en el Bloque 3: para ese grupo, Tasa se muestra como "No aplica", nunca como 0% ni con un denominador inventado.</li>
         </ul>
 
         <h3 style="font-size:var(--fs-body-lg); margin-bottom:var(--sp-2);">Fórmulas de los indicadores implementados</h3>
         <table style="width:100%; margin-bottom:var(--sp-5);">
           <tbody>
-            <tr><td class="col-text" style="width:45%; font-weight:600;">Casos</td><td class="col-text">Suma de "Casos" de la selección y filtros vigentes, agrupada por Padecimiento / Municipio / Jurisdicción / Grupo de edad ("Por"), o por Municipio / Jurisdicción / Institución / Grupo de edad / Sexo / Mes / Padecimiento en los paneles fijos del "Panorama de Casos".</td></tr>
-            <tr><td class="col-text" style="font-weight:600;">Población</td><td class="col-text">Suma de Población de BASE_POBLACION relacionada por Año+Municipio+Grupo de edad, sin duplicar por cada fila de Casos que comparta esa combinación.</td></tr>
-            <tr><td class="col-text" style="font-weight:600;">Tasa</td><td class="col-text">Casos ÷ Población × 100,000 habitantes, por categoría — disponible únicamente en la gráfica dinámica de Analizar/Por (Padecimiento/Municipio/Jurisdicción/Grupo de edad). No se calcula Tasa por Institución, por Mes ni por Sexo: la población de esta base sólo está desagregada por Año+Municipio+Grupo de edad, así que esos paneles del "Panorama de Casos" son exclusivamente de Casos.</td></tr>
+            <tr><td class="col-text" style="width:45%; font-weight:600;">Casos (Bloque 1)</td><td class="col-text">Suma de "Casos" de la selección y filtros vigentes, agrupada por Municipio / Jurisdicción / Institución / Unidad médica / Grupo de edad / Sexo ("Por").</td></tr>
+            <tr><td class="col-text" style="font-weight:600;">Casos (Bloque 2)</td><td class="col-text">Suma de "Casos" de la búsqueda y filtros vigentes, agrupada por Padecimiento / Grupo de edad / Sexo ("Por"). Nunca se cruza con Municipio/Jurisdicción/Institución/Unidad médica: esa combinación no existe en la base.</td></tr>
+            <tr><td class="col-text" style="font-weight:600;">Población</td><td class="col-text">Suma de Población del Bloque 3 relacionada por Año+Municipio+Grupo de edad, sin duplicar por cada fila de Casos que comparta esa combinación. Sólo disponible dentro del Bloque 1.</td></tr>
+            <tr><td class="col-text" style="font-weight:600;">Tasa</td><td class="col-text">Casos ÷ Población × 100,000 habitantes, por categoría — disponible ÚNICAMENTE en el Bloque 1 y ÚNICAMENTE para "Por" = Municipio, Jurisdicción sanitaria o Grupo de edad. No se calcula Tasa por Institución, por Unidad médica ni por Sexo (varias instituciones/unidades médicas conviven en el mismo municipio: sumar población por esa dimensión sobrecontaría). El Bloque 2 (Padecimientos) NUNCA ofrece Tasa ni Población, bajo ninguna dimensión: su base no tiene Municipio, así que no existe una relación válida con la población.</td></tr>
           </tbody>
         </table>
 
         <h3 style="font-size:var(--fs-body-lg); margin-bottom:var(--sp-2);">Nivel de desagregación disponible</h3>
-        <p class="col-text" style="margin-bottom:var(--sp-5);">Año (2025, 2026 o comparativo), Jurisdicción sanitaria, Municipio, Institución, Grupo de edad, Mes y Sexo. Institución, Mes y Sexo sólo están disponibles como filtro (Institución) o dentro de los paneles fijos del "Panorama de Casos" (Mes y Sexo) — nunca como opción de "Por" en la gráfica dinámica ni con Tasa, porque la población no está desagregada por esas variables. La fuente también trae Semana, que ningún panel usa por alcance de esta actualización.</p>
+        <p class="col-text" style="margin-bottom:var(--sp-3);"><strong>Bloque 1 (Casos, Territorio e Instituciones):</strong> Año (2022-2026 o comparativo), Jurisdicción sanitaria, Municipio, Institución, Unidad médica, Grupo de edad, Mes y Sexo. Unidad médica es una dimensión nueva (383 valores, cada uno bajo una sola Institución) que la base anterior no tenía. Tasa sólo aplica a Municipio, Jurisdicción sanitaria, Grupo de edad y Año.</p>
+        <p class="col-text" style="margin-bottom:var(--sp-5);"><strong>Bloque 2 (Padecimientos):</strong> Año (2022-2026 o comparativo), Padecimiento, Epi-Clave, CIE-10, Mes, Semana epidemiológica, Grupo de edad y Sexo — siempre Casos, nunca Población ni Tasa.</p>
 
         <h3 style="font-size:var(--fs-body-lg); margin-bottom:var(--sp-2);">Panorama de Casos (paneles fijos)</h3>
+        <p class="col-text" style="margin-bottom:var(--sp-3);">
+          <strong>Bloque 1</strong> — Casos por municipio (los 18 municipios, 0-rellenados), Casos por jurisdicción sanitaria (dona, o barras agrupadas por año si hay comparativo), Casos por institución, Casos por unidad médica (Top 20, nueva), Casos por grupo de edad, Casos por sexo, Tendencia por año/mes y Comparativo por mes y año — TODOS de Casos y TODOS respetando los mismos filtros y el mismo Año que el resto del Bloque 1.
+        </p>
         <p class="col-text" style="margin-bottom:var(--sp-5);">
-          Debajo de la gráfica dinámica de Analizar/Por, el tablero muestra 8 paneles fijos — Casos por municipio (los 18 municipios, 0-rellenados), Casos por jurisdicción sanitaria (dona, o barras agrupadas por año si hay comparativo), Casos por institución, Casos por grupo de edad, Padecimiento(s) dentro de la selección, Tendencia por año/mes (línea mensual; una serie por año, sobre los mismos 12 meses Ene-Dic, cuando hay comparativo), comparativo por mes y año (barras por mes, agrupadas por año si hay comparativo) y Casos por sexo — TODOS exclusivamente de Casos y TODOS respetando los mismos filtros (Municipio/Jurisdicción/Institución), el mismo buscador (CIE-10/Epi-clave/padecimiento) y el mismo selector de Año que el resto del tablero. Cuando 2025 y 2026 están seleccionados, los paneles cambian automáticamente a comparativo (una serie por año).
+          <strong>Bloque 2</strong> — Padecimiento(s) dentro de la selección (con selector Top 10/15/20/Todos), Casos por grupo de edad, Casos por sexo, Tendencia por año/mes y Comparativo por mes y año (estos dos últimos también filtrables por semana epidemiológica) — TODOS de Casos y TODOS respetando la búsqueda y el mismo Año que el resto del Bloque 2. Cuando 2 o más años están seleccionados, los paneles de ambos bloques cambian automáticamente a comparativo (una serie por año).
         </p>
 
         <h3 style="font-size:var(--fs-body-lg); margin-bottom:var(--sp-2);">Limitaciones</h3>
         <ul class="col-text" style="margin-bottom:var(--sp-5); padding-left:1.2em; list-style:disc;">
-          <li>La base es exclusivamente estatal (Querétaro). No incluye comparativo con otras entidades ni vista nacional.</li>
-          <li>No hay detalle por CLUES/unidad médica en esta base (BASE_CASOS_2025_2026 no trae esa columna); para ese nivel de detalle se necesitaría una fuente adicional.</li>
-          <li>"Epi-Clave" es un código epidemiológico interno (SUIVE), distinto del CIE-10; el CIE-10 mostrado se extrae del texto de "Padecimiento" y puede representar un rango (p. ej. "N87.0-N87.1"), no siempre un código único.</li>
-          <li>No se calcula Tasa por Institución, por Mes ni por Sexo: BASE_POBLACION_2025_2026 sólo desagrega población por Año+Municipio+Grupo de edad, no por esas variables.</li>
+          <li>Las bases son exclusivamente estatales (Querétaro). No incluyen comparativo con otras entidades ni vista nacional.</li>
+          <li>No es posible cruzar Padecimiento con Municipio, Jurisdicción, Institución o Unidad médica: la base de Padecimientos no contiene esas columnas. Mostrar ese cruce requeriría inventar una relación que los datos no soportan, así que el tablero no lo ofrece.</li>
+          <li>"Epi-Clave" es un código epidemiológico interno (SUIVE), distinto del CIE-10; el CIE-10 mostrado se extrae del texto de "Padecimiento" y puede representar un rango (p. ej. "A06.0-A06.3, A06.9"), no siempre un código único. Un padecimiento ("Infección asociada a la atención de la salud") no trae CIE-10 identificable en el texto original ("S/C").</li>
+          <li>No se calcula Tasa por Institución, por Unidad médica ni por Sexo en el Bloque 1 (varias instituciones/unidades médicas conviven en el mismo municipio: sumar población por esa dimensión sobrecontaría). El Bloque 2 no ofrece Tasa bajo ninguna dimensión.</li>
+          <li>El grupo de edad "De edad desconocida" (Bloque 1) no tiene fila de población en el Bloque 3: su Tasa se muestra como "No aplica".</li>
+          <li>2026 es un año parcial (Enero-Septiembre): las comparaciones que lo incluyan deben leerse como avance del año, no como cifra anual cerrada.</li>
         </ul>
       </div>
     </main>

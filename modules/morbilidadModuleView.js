@@ -1,167 +1,174 @@
 /**
  * modules/morbilidadModuleView.js
  * -----------------------------------------------------------------------
- * Vista del módulo de Morbilidad — ESTADO DE QUERÉTARO (2025-2026).
- * v2.5.0 (corrección de unificación) + recuperación de visualizaciones:
- * UN SOLO tablero, ya no "el módulo anterior + un panel independiente
- * abajo". Buscador por CIE-10/Epi-clave/padecimiento (opcional, acota
- * el tablero) + controles Analizar (Casos/Población/Tasa por 100,000
- * hab.) y Por (Padecimiento/Municipio/Jurisdicción/Grupo de edad) +
- * filtros (Municipio/Jurisdicción/Institución) + Año (comparar
- * 2025/2026), todo sobre UNA sola fuente: BASE_CASOS_2025_2026
- * relacionada con BASE_POBLACION_2025_2026 — exactamente la misma
- * lógica ya validada en Cargar datos (window.SNSP_CARGA_SERVICE.
- * agregarConPoblacion / agregarComparativoConPoblacion). Institución es
- * SÓLO filtro dentro de Analizar/Por, nunca "Por", a petición expresa.
+ * Vista del módulo de Morbilidad — ESTADO DE QUERÉTARO (2022-2026).
+ * Reescritura completa (reemplaza la versión 2025-2026/ACT16) a partir de
+ * TRES bases nuevas e independientes:
+ *   - data/real/morbilidad_historico_2022_2026.js       (BLOQUE 1)
+ *   - data/real/morbilidad_padecimientos_2022_2026.js   (BLOQUE 2)
+ *   - data/real/morbilidad_poblacion_2022_2026.js       (BLOQUE 3)
  *
- * Por qué ya no se usa el cubo CIE-10 anterior (CUBOS_DE_MORBILIDAD,
- * morbilidad_2025.js / services/morbilidadDataService.js): ese cubo no
- * trae Grupo de edad ni Población, y su rango de años (2024-2025-2026)
- * no coincide con el de esta base (2025-2026). Tener dos fuentes de
- * datos distintas en el mismo tablero habría significado mostrar
- * números distintos para lo mismo, exactamente lo que se pidió evitar.
- * Ningún archivo de otro módulo se tocó ni se borró: morbilidad_2025.js
- * y morbilidadDataService.js siguen en el proyecto, sólo que esta
- * página ya no los referencia.
+ * REGLA NO NEGOCIABLE (instrucción explícita de la usuaria, SNSP
+ * Jurisdicción Sanitaria No. 1): estas tres bases NO se cruzan entre sí
+ * más allá de lo que sus columnas realmente permiten (ver cabecera de
+ * scripts/build_morbilidad_historico.py para el detalle verificado
+ * contra los archivos crudos). En concreto, en ESTE archivo:
  *
- * "Panorama de Casos" (recuperación de visualizaciones, esta
- * actualización): además de la gráfica dinámica de Analizar/Por, se
- * reincorporan 8 paneles fijos que ya existían en la versión anterior
- * de Morbilidad — Casos por municipio, Casos por jurisdicción
- * sanitaria, Casos por institución, Casos por grupo de edad,
- * Padecimiento(s) dentro de la selección, Tendencia por año/mes,
- * comparativo por mes y año y Casos por sexo — TODOS sobre la misma
- * fuente única y respondiendo a los mismos filtros/buscador/Año que el
- * resto del tablero (se recalculan dentro de renderTablero(), nunca por
- * separado). Todos son EXCLUSIVAMENTE de Casos (nunca Población/Tasa),
- * igual que la versión anterior: la población de esta base sólo está
- * desagregada por Año+Municipio+Grupo de edad, así que no hay forma de
- * calcular Tasa por institución, por mes ni por sexo sin inventar un
- * denominador — esto aplica en particular a Casos por institución, que
- * el usuario pidió dejar explícitamente fuera de Tasa.
+ *   - BLOQUE 1 (Casos/Territorio/Instituciones) y BLOQUE 2
+ *     (Padecimientos) son DOS TABLEROS COMPLETAMENTE SEPARADOS, con sus
+ *     propios filtros, su propia gráfica/tabla principal y su propio
+ *     Panorama de Casos — nunca comparten un filtro ni un cálculo. El
+ *     Bloque 1 NO tiene acceso a Padecimiento/Epi-Clave/CIE-10 (viven
+ *     sólo en el Bloque 2) y el Bloque 2 NO tiene acceso a
+ *     Municipio/Jurisdicción/Institución/Unidad médica (viven sólo en
+ *     el Bloque 1). El buscador de Padecimiento/CIE-10/Epi-clave sólo
+ *     filtra el Bloque 2.
+ *   - Tasa (Casos/Población×100,000) SÓLO se ofrece dentro del Bloque 1,
+ *     y SÓLO para "Por" = Municipio, Jurisdicción sanitaria o Grupo de
+ *     edad (las únicas dimensiones que, junto con Año, la Base de
+ *     Población sí desagrega) — nunca por Institución, Unidad médica ni
+ *     Sexo: varias instituciones/unidades médicas atienden
+ *     simultáneamente el mismo municipio, así que sumar población por
+ *     esa dimensión sobrecontaría (mismo razonamiento ya usado por
+ *     services/cargaDataService.js, agregarConPoblacion, que NUNCA se
+ *     modifica aquí). El Bloque 2 NUNCA ofrece Tasa ni Población, bajo
+ *     ninguna dimensión: su base no tiene Municipio, así que no existe
+ *     una relación válida con la Base de Población.
+ *   - Un Grupo de edad sin fila de población ("De edad desconocida", ver
+ *     meta.grupos_edad_sin_poblacion del bundle de Población) muestra
+ *     Tasa como "No aplica", nunca 0% ni un valor calculado con un
+ *     denominador inventado — services/cargaDataService.js ya devuelve
+ *     `tasa: null` en ese caso; este archivo sólo decide cómo se
+ *     IMPRIME ese null (nunca lo convierte a 0).
  *
- * Tendencia por año/mes y comparativo por mes y año usan un SEGUNDO
- * bundle, ligero, generado por el mismo script (morbilidad_temporal_
- * 2025_2026.js -> window.SNSP_MORBILIDAD_TEMPORAL_DATA): agrupado por
- * Año+Jurisdicción+Municipio+Institución+Mes+Sexo+Epi-Clave (sin Grupo
- * de edad, que esas gráficas no usan). Es la MISMA base BASE_CASOS_
- * 2025_2026, sólo agregada distinto para no inflar el bundle principal
- * (agrupar TODO junto -Mes+Sexo+Grupo de edad- habría dado ~133,000
- * filas en vez de 20,563; separando Grupo de edad quedó en 35,809). Si
- * ese bundle no está disponible, esas 3 gráficas se ocultan con un
- * aviso, en vez de romper el resto del tablero.
+ * CIE-10 se conserva: se extrae del propio texto de Padecimiento
+ * ("Nombre(CIE10)") de la Base de Padecimientos, con la misma lógica de
+ * siempre (ver build_morbilidad_historico.py) — no se fabrica ninguna
+ * relación nueva.
+ *
+ * Ya no se usa un bundle "temporal" aparte (como en 2025-2026): la Base
+ * de Casos Históricos ya trae Mes+Sexo+Grupo de edad+Municipio+
+ * Institución+Unidad médica juntos en cada fila, así que Tendencia,
+ * Comparativo por mes y año y Casos por sexo del Bloque 1 se calculan
+ * directo del bundle principal. El Bloque 2 sí trae Semana (el Bloque 1
+ * no), así que sus propias gráficas temporales pueden filtrarse también
+ * por semana epidemiológica.
  * -----------------------------------------------------------------------
  */
 function SNSP_renderMorbilidadModulePage(opts) {
   window.SNSP_AUTH.requireAuth("../index.html");
 
   SNSP_renderSidebar("sidebar", "morbilidad");
-  // Limpieza de texto (ajuste de seguimiento a ACT09): se quitó "(prueba
-  // funcional)" del subtítulo y la línea "Actualizado: Ver fecha de
-  // archivo en Metodología" — esta base no trae una fecha de corte
-  // registrada, así que en vez de inventar una o dejar un texto que se
-  // remite a sí mismo, simplemente no se muestra esa línea. La fuente
-  // completa (bases + periodo + total de padecimientos) sigue disponible
-  // en el pie de página (#source-label) y en Metodología.
   SNSP_renderTopbar("topbar", {
     title: "Morbilidad en el estado de Querétaro",
-    subtitle: "Módulo epidemiológico — datos estatales 2025-2026",
+    subtitle: "Módulo epidemiológico — datos estatales 2022-2026",
     rootPath: "../",
   });
 
-  const datos = window.SNSP_MORBILIDAD_CASOS_DATA;
+  const datosH = window.SNSP_MORBILIDAD_HISTORICO_DATA;
+  const datosP = window.SNSP_MORBILIDAD_PADECIMIENTOS_DATA;
   const poblacionData = window.SNSP_MORBILIDAD_POBLACION_DATA;
   const svcCarga = window.SNSP_CARGA_SERVICE;
 
-  if (!datos || !svcCarga) {
+  if (!datosH || !datosP || !svcCarga) {
     document.querySelector(".app-content").innerHTML =
-      '<div class="empty-state"><h3>Dato pendiente de carga</h3><p class="text-muted">No se encontró la base de Morbilidad (BASE_CASOS_2025_2026). Verifica que data/real/morbilidad_casos_2025_2026.js esté incluido.</p></div>';
+      '<div class="empty-state"><h3>Dato pendiente de carga</h3><p class="text-muted">No se encontraron las bases de Morbilidad 2022-2026. Verifica que data/real/morbilidad_historico_2022_2026.js y data/real/morbilidad_padecimientos_2022_2026.js estén incluidos.</p></div>';
     return;
   }
 
-  const headers = datos.headers; // ["Año","Jurisdicción","Municipio","Institución","Grupo de edad","Epi-Clave","Padecimiento","Mes","Semana","Casos"] (Mes/Semana desde ACT14)
-  const rows = datos.rows;
-  const idxCol = {
-    anio: headers.indexOf("Año"),
-    jurisdiccion: headers.indexOf("Jurisdicción"),
-    municipio: headers.indexOf("Municipio"),
-    institucion: headers.indexOf("Institución"),
-    grupo_edad: headers.indexOf("Grupo de edad"),
-    epiclave: headers.indexOf("Epi-Clave"),
-    padecimiento: headers.indexOf("Padecimiento"),
-    mes: headers.indexOf("Mes"),
-    semana: headers.indexOf("Semana"),
-    casos: headers.indexOf("Casos"),
+  // =======================================================================
+  // BLOQUE 1 — Casos / Territorio / Instituciones
+  // =======================================================================
+  const headersH = datosH.headers; // ["Año","Jurisdicción","Municipio","Institución","Unidad médica","Mes","Grupo de edad","Sexo","Casos"]
+  const rowsH = datosH.rows;
+  const idxH = {
+    anio: headersH.indexOf("Año"),
+    jurisdiccion: headersH.indexOf("Jurisdicción"),
+    municipio: headersH.indexOf("Municipio"),
+    institucion: headersH.indexOf("Institución"),
+    unidad_medica: headersH.indexOf("Unidad médica"),
+    mes: headersH.indexOf("Mes"),
+    grupo_edad: headersH.indexOf("Grupo de edad"),
+    sexo: headersH.indexOf("Sexo"),
+    casos: headersH.indexOf("Casos"),
   };
+  const catH = datosH.catalogos || { anios: [], jurisdicciones: [], municipios: [], instituciones: [], unidadesMedicas: [], meses: [], gruposEdad: [], sexos: [] };
 
-  const joinCols = svcCarga.detectarColumnasClave(headers);
+  const joinCols = svcCarga.detectarColumnasClave(headersH);
   const poblacionIndex = poblacionData
     ? svcCarga.indexarPoblacion(poblacionData.headers, poblacionData.rows)
     : { completo: false, mapa: new Map() };
   const poblacionDisponible = poblacionIndex.completo &&
     joinCols.colAnio !== -1 && joinCols.colMunicipio !== -1 && joinCols.colGrupoEdad !== -1;
+  const gruposEdadSinPoblacion = new Set((poblacionData && poblacionData.meta && poblacionData.meta.grupos_edad_sin_poblacion) || []);
 
-  const catalogos = datos.catalogos || { anios: [], jurisdicciones: [], municipios: [], instituciones: [], gruposEdad: [], meses: [], semanas: [] };
-  const catalogoPadecimientos = datos.catalogo_padecimientos || [];
-  // ACT14: relación Mes<->Semana por Año, calculada directo de la base
-  // cruda (nunca asumida) — ver build_morbilidad_casos.py. Alimenta la
-  // "coherencia" entre los filtros de Mes y Semana (punto 2 de ACT14).
-  const mesSemanaMeta = (datos.meta && datos.meta.mes_semana) || {};
+  const dimColMapH = {
+    municipio: idxH.municipio, jurisdiccion: idxH.jurisdiccion, institucion: idxH.institucion,
+    unidad_medica: idxH.unidad_medica, grupo_edad: idxH.grupo_edad, sexo: idxH.sexo,
+  };
+  const dimLabelMapH = {
+    municipio: "municipio", jurisdiccion: "jurisdicción sanitaria", institucion: "institución",
+    unidad_medica: "unidad médica", grupo_edad: "grupo de edad", sexo: "sexo",
+  };
+  // Única razón real de esta lista: son las ÚNICAS dimensiones para las que
+  // la Base de Población (Año+Municipio+Grupo de edad) ofrece un
+  // denominador sin sobrecontar (ver cabecera del archivo). Institución,
+  // Unidad médica y Sexo quedan fuera a propósito.
+  const DIMENSIONES_CON_TASA_VALIDA = new Set(["municipio", "jurisdiccion", "grupo_edad"]);
 
-  const dimColMap = { padecimiento: idxCol.padecimiento, municipio: idxCol.municipio, jurisdiccion: idxCol.jurisdiccion, grupo_edad: idxCol.grupo_edad };
-  const dimLabelMap = { padecimiento: "padecimiento", municipio: "municipio", jurisdiccion: "jurisdicción sanitaria", grupo_edad: "grupo de edad" };
+  let currentFiltersH = {}; // { municipio_morbilidad, jurisdiccion_morbilidad, institucion_morbilidad, unidad_medica_morbilidad }
+  let chartH = null;
+  let rowsHFiltradas = rowsH;
 
-  // ---- Bundle secundario (Mes/Sexo) para el "Panorama de Casos" ----
-  // Ver nota de cabecera: sólo alimenta Tendencia por año/mes,
-  // comparativo por mes y año y Casos por sexo. Si no está disponible,
-  // esos 3 paneles se ocultan con un aviso en vez de romper el resto.
-  const datosTemporal = window.SNSP_MORBILIDAD_TEMPORAL_DATA || null;
-  const idxColT = datosTemporal ? {
-    anio: datosTemporal.headers.indexOf("Año"),
-    jurisdiccion: datosTemporal.headers.indexOf("Jurisdicción"),
-    municipio: datosTemporal.headers.indexOf("Municipio"),
-    institucion: datosTemporal.headers.indexOf("Institución"),
-    mes: datosTemporal.headers.indexOf("Mes"),
-    semana: datosTemporal.headers.indexOf("Semana"),
-    sexo: datosTemporal.headers.indexOf("Sexo"),
-    epiclave: datosTemporal.headers.indexOf("Epi-Clave"),
-    casos: datosTemporal.headers.indexOf("Casos"),
-  } : null;
-  const rowsT = datosTemporal ? datosTemporal.rows : [];
-  const mesesCatalogo = datosTemporal && datosTemporal.meta ? (datosTemporal.meta.meses_disponibles || []) : [];
+  // =======================================================================
+  // BLOQUE 2 — Padecimientos
+  // =======================================================================
+  const headersP = datosP.headers; // ["Año","Epi-Clave","Padecimiento","Mes","Semana","Grupo de edad","Sexo","Casos"]
+  const rowsP = datosP.rows;
+  const idxP = {
+    anio: headersP.indexOf("Año"),
+    epiclave: headersP.indexOf("Epi-Clave"),
+    padecimiento: headersP.indexOf("Padecimiento"),
+    mes: headersP.indexOf("Mes"),
+    semana: headersP.indexOf("Semana"),
+    grupo_edad: headersP.indexOf("Grupo de edad"),
+    sexo: headersP.indexOf("Sexo"),
+    casos: headersP.indexOf("Casos"),
+  };
+  const catP = datosP.catalogos || { anios: [], meses: [], semanas: [], gruposEdad: [], sexos: [] };
+  const catalogoPadecimientos = datosP.catalogo_padecimientos || [];
+  const mesSemanaMeta = (datosP.meta && datosP.meta.mes_semana) || {};
 
-  // ACT15 (punto 1): `rows`/`rowsT` de arriba son SIEMPRE el bundle
-  // completo, sin filtrar — `_filtrarPorMesSemana()` (definida más abajo)
-  // reasigna estas 2 variables al inicio de cada renderTablero()/
-  // renderPanoramaCasos(), y son las que consumen svcCarga.agregar*() en
-  // vez de `rows`/`rowsT` directo, para que Mes/Semana (selección
-  // múltiple) filtren igual que cualquier otro filtro sin tocar el
-  // servicio compartido (ver comentario junto a _filtrarPorMesSemana).
-  let rowsCasosFiltradas = rows;
-  let rowsTFiltradas = rowsT;
+  const dimColMapP = { padecimiento: idxP.padecimiento, grupo_edad: idxP.grupo_edad, sexo: idxP.sexo };
+  const dimLabelMapP = { padecimiento: "padecimiento", grupo_edad: "grupo de edad", sexo: "sexo" };
+
+  let seleccionPadecimiento = null; // {epiclave, padecimiento, cie10_texto, ...} | null
+  let chartP = null;
+  let rowsPFiltradas = rowsP;
+
+  // Año: catálogo único — ambas bases cubren exactamente los mismos años
+  // (verificado al construir los bundles); se usa el del Bloque 1 como
+  // referencia y se aplica a los dos tableros a la vez.
+  const catalogosAnio = (catH.anios && catH.anios.length ? catH.anios : catP.anios) || [];
+  const ANIO_PARCIAL = (datosH.meta && datosH.meta.anio_parcial) || (datosP.meta && datosP.meta.anio_parcial) || null;
+  const ANIO_PARCIAL_NOTA = (datosH.meta && datosH.meta.anio_parcial_nota) || "";
+
+  // -----------------------------------------------------------------------
+  // Utilidades genéricas (sin depender de qué bloque las usa)
+  // -----------------------------------------------------------------------
+  function _norm(s) { return (s || "").toString().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, ""); }
 
   function _nombreMes(mes) {
-    // "01 Enero" -> "Ene", útil para etiquetas cortas en el eje X.
     const m = /^\d{2}\s+(.+)$/.exec(mes || "");
     const nombre = m ? m[1] : (mes || "");
     return nombre.slice(0, 3);
   }
+  function _nombreMesLargo(mesCat) {
+    const m = /^\d{2}\s+(.+)$/.exec(mesCat || "");
+    return m ? m[1] : (mesCat || "");
+  }
 
-  // ---- Ajuste de etiquetas mensuales: Tendencia y Comparativo por mes y
-  // año siempre tienen 12 categorías fijas, pero en comparativo dibujan 2
-  // valores por mes muy juntos (2 barras, o 2 puntos de línea) — con el
-  // formato completo ("81,046") las etiquetas numéricas se encimaban entre
-  // sí. Formato compacto ("81.0k") para esos 2 paneles únicamente: el
-  // valor real sigue siendo el mismo (se conserva en el dato y en el
-  // tooltip al pasar el cursor), sólo cambia cómo se ve el texto impreso
-  // sobre la barra/punto. ----
   function _morbFormatoCompacto(n) {
-    // Defensivo: Chart.js (motor real, no el stub de las pruebas) puede
-    // invocar este formatter con algo que no es número/null/undefined en
-    // ciertos redibujados internos (p. ej. mientras una leyenda se anima)
-    // — nunca debe lanzar (rompería el dibujo de la gráfica completa),
-    // así que cualquier valor no convertible a número cae a "0" en vez de
-    // propagar la excepción.
     let v;
     try {
       if (n === null || n === undefined) return "0";
@@ -174,265 +181,65 @@ function SNSP_renderMorbilidadModulePage(opts) {
     const miles = v / 1000;
     return miles.toLocaleString("es-MX", { minimumFractionDigits: Math.abs(miles) < 10 ? 1 : 0, maximumFractionDigits: Math.abs(miles) < 10 ? 1 : 0 }) + "k";
   }
-  // ACT14 (punto 5) + ACT15 (punto 3): etiquetas pequeñas (8px, se
-  // conserva) y EN NEGRITA otra vez (se había quitado en ACT14; ACT15
-  // pidió regresarla sin perder el tamaño chico). Para evitar el traslape
-  // que la negrita por sí sola reintroduciría en Tendencia por año/mes
-  // (línea), `pointLabelSplit` reparte las 2 series verticalmente en vez
-  // de apilarlas del mismo lado: la serie más temprana (2025, dsIndex 0)
-  // queda ARRIBA del punto y la más reciente (2026, dsIndex 1) queda
-  // ABAJO — ver components/charts.js, opción retrocompatible que no
-  // afecta a ningún otro módulo. En Comparativo por mes y año (barras) el
-  // mismo tamaño/negrita aplica igual, sin necesitar arriba/abajo porque
-  // las barras de cada año ya están una junto a otra, no una encima de la
-  // otra. Aplica igual en el PDF: la imagen se captura del mismo canvas
-  // ya dibujado.
   const MORB_OPTS_ETIQUETA_MENSUAL = { formatter: _morbFormatoCompacto, valueLabelFontSize: 8, pointLabelSplit: true };
 
-  let seleccionPadecimiento = null; // {epiclave, padecimiento, cie10_texto, ...} | null
-  let currentFilters = {}; // { municipio_morbilidad, jurisdiccion_morbilidad, institucion_morbilidad }
-  let chart = null;
-
-  // ---- Búsqueda por texto libre (idéntica lógica a la anterior: substring
-  // case-insensitive y sin acentos contra nombre, epi-clave o CIE-10) ----
-  function _norm(s) { return (s || "").toString().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, ""); }
-
-  function buscarPadecimientos(texto, limit) {
-    const q = _norm(texto);
-    let results = catalogoPadecimientos;
-    if (q) {
-      results = results.filter((p) =>
-        _norm(p.padecimiento).includes(q) ||
-        _norm(p.epiclave).includes(q) ||
-        _norm(p.cie10_texto).includes(q) ||
-        (p.cie10_codigos || []).some((c) => _norm(c).includes(q)) ||
-        (p.cie10_prefijos || []).some((c) => _norm(c).includes(q))
-      );
+  function _lineasEtiquetaMorb(categoria, wrapAt) {
+    wrapAt = wrapAt || 26;
+    if (typeof categoria !== "string" || categoria.length <= wrapAt) return 1;
+    if (typeof SNSP_wrapLabel === "function") {
+      const lineas = SNSP_wrapLabel(categoria, wrapAt);
+      return Array.isArray(lineas) ? lineas.length : 1;
     }
-    return limit ? results.slice(0, limit) : results;
+    return Math.ceil(categoria.length / wrapAt);
   }
 
-  // ---- ACT14 (punto 2): Padecimiento, CIE-10 y Epi-clave separados en 3
-  // buscadores sincronizados, en vez de un único campo combinado. Los 3
-  // siguen usando el MISMO catálogo y la MISMA lógica de coincidencia ya
-  // validada (buscarPadecimientos, sin cambios) — sólo se repite la
-  // sección de resultados 3 veces, una por campo, y al elegir una
-  // sugerencia en CUALQUIERA de los 3 se actualiza la MISMA selección
-  // compartida (seleccionPadecimiento) y se reflejan los otros 2 campos
-  // con su valor correspondiente, para que se vean "sincronizados". ----
-  const BUSCADORES_PADECIMIENTO = [
-    { inputId: "cie10-search", boxId: "cie10-resultados" },
-    { inputId: "cie10-search-cie10", boxId: "cie10-resultados-cie10" },
-    { inputId: "cie10-search-epiclave", boxId: "cie10-resultados-epiclave" },
-  ];
+  const MORB_BAR_THICKNESS = 22;
+  const MORB_BAR_PCT_CLASICO = 0.85;
+  const MORB_CAT_PCT_CLASICO = 0.85;
+  const MORB_BAR_PCT_COMPARATIVO = 0.92;
+  const MORB_CAT_PCT_COMPARATIVO = 0.65;
 
-  function renderResultadosBusqueda(texto, boxId) {
-    const box = document.getElementById(boxId);
-    if (!box) return;
-    const resultados = buscarPadecimientos(texto, 25);
-    if (!texto) { box.innerHTML = ""; box.style.display = "none"; return; }
-    if (!resultados.length) {
-      box.innerHTML = `<div class="cie10-suggestion cie10-suggestion--empty">Sin coincidencias en el catálogo disponible</div>`;
-      box.style.display = "block";
-      return;
-    }
-    box.innerHTML = resultados.map((p) => `
-      <button type="button" class="cie10-suggestion" data-epiclave="${p.epiclave}">
-        <span class="cie10-suggestion__code">${p.cie10_texto || "s/c"}</span>
-        <span class="cie10-suggestion__label">${p.padecimiento}</span>
-        <span class="cie10-suggestion__epi">Epi-clave ${p.epiclave}</span>
-      </button>
-    `).join("");
-    box.style.display = "block";
-    box.querySelectorAll(".cie10-suggestion[data-epiclave]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        seleccionarPadecimiento(btn.getAttribute("data-epiclave"));
-        box.style.display = "none";
+  function _morbBarraOpts(comparativo) {
+    return comparativo
+      ? { maxBarThickness: MORB_BAR_THICKNESS, barPercentage: MORB_BAR_PCT_COMPARATIVO, categoryPercentage: MORB_CAT_PCT_COMPARATIVO }
+      : { maxBarThickness: MORB_BAR_THICKNESS, barPercentage: MORB_BAR_PCT_CLASICO, categoryPercentage: MORB_CAT_PCT_CLASICO };
+  }
+  function _alturaCategoriaBarras(comparativo, nSeries) {
+    const barPct = comparativo ? MORB_BAR_PCT_COMPARATIVO : MORB_BAR_PCT_CLASICO;
+    const catPct = comparativo ? MORB_CAT_PCT_COMPARATIVO : MORB_CAT_PCT_CLASICO;
+    const series = comparativo ? Math.max(nSeries || 2, 2) : 1;
+    const gapEntreBarras = MORB_BAR_THICKNESS * (1 / barPct - 1);
+    const altoBarras = series * MORB_BAR_THICKNESS + Math.max(0, series - 1) * gapEntreBarras;
+    return altoBarras / catPct;
+  }
+  function _ajustarAlturaBarra(wrapId, categorias, comparativo, nSeries) {
+    const wrap = document.getElementById(wrapId);
+    if (!wrap) return;
+    const alturaPorSeries = _alturaCategoriaBarras(comparativo, nSeries);
+    const maxLineas = categorias.reduce((m, c) => Math.max(m, _lineasEtiquetaMorb(c, 26)), 1);
+    const alturaPorEtiqueta = maxLineas * 16;
+    const alturaPorCategoria = Math.max(alturaPorSeries, alturaPorEtiqueta);
+    wrap.style.height = Math.max(260, categorias.length * alturaPorCategoria + 90) + "px";
+  }
+
+  function _contarCategoriasConDatos(chartInst) {
+    if (!chartInst || !chartInst.data) return null;
+    const labels = chartInst.data.labels || [];
+    const datasets = chartInst.data.datasets || [];
+    let conDatos = 0;
+    labels.forEach((_, i) => {
+      const algunoConValor = datasets.some((ds) => {
+        const v = (ds.data || [])[i];
+        return typeof v === "number" && v > 0;
       });
+      if (algunoConValor) conDatos++;
     });
+    return { conDatos, total: labels.length };
   }
 
-  function seleccionarPadecimiento(epiclave) {
-    const p = catalogoPadecimientos.find((x) => x.epiclave === String(epiclave));
-    seleccionPadecimiento = p || null;
-    const etiqueta = p ? `${p.cie10_texto ? p.cie10_texto + " — " : ""}${p.padecimiento}` : "";
-    document.getElementById("seleccion-actual").innerHTML = etiqueta
-      ? `Consultando: <strong>${etiqueta}</strong> <button type="button" class="btn btn-ghost btn-sm" id="btn-limpiar-seleccion">Quitar</button>`
-      : "";
-    const limpiarBtn = document.getElementById("btn-limpiar-seleccion");
-    if (limpiarBtn) limpiarBtn.addEventListener("click", () => {
-      seleccionPadecimiento = null;
-      document.getElementById("seleccion-actual").innerHTML = "";
-      BUSCADORES_PADECIMIENTO.forEach((b) => { const inp = document.getElementById(b.inputId); if (inp) inp.value = ""; });
-      renderTablero();
-    });
-    // Sincroniza los 3 campos con la selección elegida (se ve de dónde
-    // vino cada dato: el nombre en Padecimiento, el rango en CIE-10, el
-    // código exacto en Epi-clave) — no dispara una nueva búsqueda, sólo
-    // refleja el valor.
-    const inpPad = document.getElementById("cie10-search");
-    const inpCie10 = document.getElementById("cie10-search-cie10");
-    const inpEpi = document.getElementById("cie10-search-epiclave");
-    if (inpPad) inpPad.value = p ? p.padecimiento : "";
-    if (inpCie10) inpCie10.value = p && p.cie10_texto ? p.cie10_texto : "";
-    if (inpEpi) inpEpi.value = p ? p.epiclave : "";
-    renderTablero();
-  }
-
-  BUSCADORES_PADECIMIENTO.forEach(({ inputId, boxId }) => {
-    const input = document.getElementById(inputId);
-    if (input) input.addEventListener("input", (e) => renderResultadosBusqueda(e.target.value, boxId));
-  });
-  document.addEventListener("click", (e) => {
-    BUSCADORES_PADECIMIENTO.forEach(({ inputId, boxId }) => {
-      const input = document.getElementById(inputId);
-      const box = document.getElementById(boxId);
-      if (input && box && !input.parentElement.contains(e.target)) box.style.display = "none";
-    });
-  });
-
-  // ---- Año (comparar): mismo patrón de chips ya validado en Cargar datos.
-  // Ajuste: SIN ningún año marcado, el alcance ya NO combina/suma 2025 y
-  // 2026 en una sola serie — se trata como comparativo (2025 vs 2026),
-  // exactamente igual que si el usuario hubiera marcado los 2 años a mano.
-  // Un solo año marcado sigue mostrando sólo ese año. `_aniosEnAlcance` es
-  // el único lugar que decide esto; renderTablero() y renderPanoramaCasos()
-  // lo usan en vez de leer los checkboxes directamente, así que la regla
-  // aplica igual a la gráfica principal, la tabla y los 8 paneles del
-  // Panorama de Casos. ----
-  function leerAniosSeleccionados() {
-    return Array.from(document.querySelectorAll("#morb-anio-menu input:checked")).map((i) => i.value);
-  }
-
-  function _aniosEnAlcance() {
-    const marcados = leerAniosSeleccionados();
-    return marcados.length ? marcados.slice().sort() : (catalogos.anios || []).slice().sort();
-  }
-
-  // Texto uniforme para el estado comparativo (ACT09 — limpieza de texto):
-  // SIEMPRE "Comparativo 2025 vs 2026", en vez de las variantes sueltas que
-  // había antes ("... (barras agrupadas)", "Mismos 12 meses, ...", etc.).
-  function _textoComparativo(anios) {
-    return `Comparativo ${anios.join(" vs ")}`;
-  }
-
-  function inicializarFiltroAnio() {
-    const menu = document.getElementById("morb-anio-menu");
-    const chipsEl = document.getElementById("morb-anio-chips");
-    const toggleBtn = document.getElementById("morb-anio-toggle");
-    const cont = document.getElementById("morb-anio-multiselect");
-    const valores = (catalogos.anios || []).slice().sort();
-    menu.innerHTML = valores.map((v) => `
-      <label class="carga-anio-opcion"><input type="checkbox" value="${v}"> ${v}</label>
-    `).join("");
-
-    function renderChips() {
-      const seleccionados = Array.from(menu.querySelectorAll("input:checked")).map((i) => i.value);
-      chipsEl.innerHTML = seleccionados.length
-        ? seleccionados.map((v) => `<span class="carga-anio-chip" data-valor="${v}">${v} <button type="button" aria-label="Quitar ${v}">&times;</button></span>`).join("")
-        : `<span class="text-muted" style="font-size:var(--fs-body-sm);">${_textoComparativo(valores)} (ningún año marcado)</span>`;
-    }
-    renderChips();
-
-    // ACT14: Año entra en la relación Mes<->Semana (no es la misma entre
-    // 2025 y 2026), así que un cambio de Año también repuebla esos 2
-    // selects — si la función aún no existe (primera llamada, antes de que
-    // el bloque de Mes/Semana más abajo la declare) se ignora en silencio,
-    // gracias al "function" hoisting esto nunca pasa en la práctica.
-    function _refrescarMesSemanaSiAplica() { if (typeof _poblarSelectsMesSemana === "function") _poblarSelectsMesSemana(); }
-
-    menu.querySelectorAll("input[type=checkbox]").forEach((chk) => {
-      chk.addEventListener("change", () => { renderChips(); _refrescarMesSemanaSiAplica(); renderTablero(); });
-    });
-    chipsEl.addEventListener("click", (e) => {
-      const btn = e.target.closest("button");
-      if (!btn) return;
-      const valor = btn.closest(".carga-anio-chip").dataset.valor;
-      const chk = Array.from(menu.querySelectorAll("input[type=checkbox]")).find((i) => i.value === valor);
-      if (chk) { chk.checked = false; renderChips(); _refrescarMesSemanaSiAplica(); renderTablero(); }
-    });
-    toggleBtn.addEventListener("click", (e) => { e.stopPropagation(); menu.hidden = !menu.hidden; });
-    document.addEventListener("click", (e) => { if (!cont.contains(e.target)) menu.hidden = true; });
-  }
-  inicializarFiltroAnio();
-
-  // ---- ACT14 (puntos 1 y 2) + ACT15 (punto 1): filtros de Mes y Semana
-  // epidemiológica — ACT15 los cambió de selección única (<select>) a
-  // selección MÚLTIPLE (mismo patrón visual de chips ya validado en Año:
-  // #morb-mes-menu/#morb-semana-menu son <div> con checkboxes, no
-  // <select>). Igual que Año, aplican de inmediato (no pasan por el botón
-  // "Aplicar filtros" de Municipio/Jurisdicción/Institución) y se leen
-  // sólo desde _mesesSeleccionados()/_semanasSeleccionadas() — nunca desde
-  // `currentFilters` — así el "Limpiar" de ese otro filtro-bar nunca los
-  // toca por accidente. Como svcCarga.agregar()/agregarComparativo()/etc.
-  // (componente COMPARTIDO con CACU/Mama/Población/Dashboard, no se
-  // modifica) sólo soportan un filtro de IGUALDAD por columna, la
-  // selección múltiple de Mes/Semana YA NO se pasa como {colIdx,valor} en
-  // filtrosActivos — en vez de eso, `_filtrarPorMesSemana()` (más abajo)
-  // pre-filtra el arreglo de filas de Casos ANTES de agregarlo (mismo
-  // resultado que un filtro "IN", sin tocar el servicio compartido); la
-  // Población (anual, Año+Municipio+Grupo de edad) nunca pasa por este
-  // pre-filtro, así que sigue sin duplicarse ni desagregarse por Mes/
-  // Semana.
-  function _mesesSeleccionados() {
-    const menu = document.getElementById("morb-mes-menu");
-    return menu ? Array.from(menu.querySelectorAll("input:checked")).map((i) => i.value) : [];
-  }
-  function _semanasSeleccionadas() {
-    const menu = document.getElementById("morb-semana-menu");
-    return menu ? Array.from(menu.querySelectorAll("input:checked")).map((i) => i.value) : [];
-  }
-
-  // Unión (a través de los años EN ALCANCE — mismo criterio que
-  // _aniosEnAlcance) de las Semanas que ocurren dentro de `mes`, o los
-  // Meses que toca `semana` — la relación Mes<->Semana NO es igual entre
-  // 2025 y 2026 (el 1 de enero cae distinto), así que se calcula por año
-  // y se une, nunca se asume una tabla fija.
-  function _semanasCompatiblesConMes(mes) {
-    const set = new Set();
-    _aniosEnAlcance().forEach((anio) => {
-      const info = mesSemanaMeta[anio];
-      if (info && info.porMes && info.porMes[mes]) info.porMes[mes].forEach((s) => set.add(s));
-    });
-    return Array.from(set).sort();
-  }
-  function _mesesCompatiblesConSemana(semana) {
-    const set = new Set();
-    _aniosEnAlcance().forEach((anio) => {
-      const info = mesSemanaMeta[anio];
-      if (info && info.porSemana && info.porSemana[semana]) info.porSemana[semana].forEach((m) => set.add(m));
-    });
-    return Array.from(set).sort();
-  }
-  // ACT15: mismas 2 funciones de arriba, pero para un CONJUNTO de meses o
-  // semanas seleccionadas (unión sobre todos los valores elegidos) — con
-  // el conjunto vacío ("Todos"/"Todas"), no acota nada (catálogo completo).
-  function _semanasCompatiblesConMeses(meses) {
-    if (!meses.length) return (catalogos.semanas || []).slice();
-    const set = new Set();
-    meses.forEach((mes) => _semanasCompatiblesConMes(mes).forEach((s) => set.add(s)));
-    return Array.from(set).sort();
-  }
-  function _mesesCompatiblesConSemanas(semanas) {
-    if (!semanas.length) return (catalogos.meses || []).slice();
-    const set = new Set();
-    semanas.forEach((semana) => _mesesCompatiblesConSemana(semana).forEach((m) => set.add(m)));
-    return Array.from(set).sort();
-  }
-
-  // ---- Multiselect de chips genérico (mismo patrón visual/markup que
-  // Año — carga-anio-chip/menu/opcion — reescrito aquí para no duplicar
-  // handlers cada vez que se repuebla el menú: `chipsEl.onclick` se
-  // REEMPLAZA en cada llamada en vez de acumularse con addEventListener).
-  // `seleccionados`: los valores YA VÁLIDOS que deben quedar marcados tras
-  // repoblar (el llamador decide, ver _poblarSelectsMesSemana). ----
-  // `etiquetaTodo`: texto a mostrar cuando TODAS las opciones disponibles
-  // quedan marcadas (ACT16 punto 1) — "Todos" para Mes, "Todas" para
-  // Semana; también rotula el botón "Seleccionar todos/todas" agregado al
-  // principio del menú, que marca de un click sólo las opciones
-  // actualmente disponibles (ya filtradas por compatibilidad con el otro
-  // multiselect, ver _poblarSelectsMesSemana — nunca marca algo que no
-  // esté en `opciones`).
+  // ---- Chips multiselect genérico (Año / Mes / Semana) — un solo render,
+  // reutilizado por los 2 bloques (Mes y Semana de cada uno son listas
+  // independientes, nunca compartidas). ----
   function _renderMultiselectChips(menuId, chipsId, opciones, etiquetaFn, seleccionados, onChange, etiquetaTodo) {
     const menu = document.getElementById(menuId);
     const chipsEl = document.getElementById(chipsId);
@@ -473,7 +280,6 @@ function SNSP_renderMorbilidadModulePage(opts) {
       if (chk) { chk.checked = false; renderChips(); onChange(); }
     };
   }
-
   function _initToggleMultiselect(toggleId, menuId, contId) {
     const toggleBtn = document.getElementById(toggleId);
     const menu = document.getElementById(menuId);
@@ -482,66 +288,685 @@ function SNSP_renderMorbilidadModulePage(opts) {
     toggleBtn.addEventListener("click", (e) => { e.stopPropagation(); menu.hidden = !menu.hidden; });
     document.addEventListener("click", (e) => { if (!cont.contains(e.target)) menu.hidden = true; });
   }
+  function _leerMarcados(menuId) {
+    const menu = document.getElementById(menuId);
+    return menu ? Array.from(menu.querySelectorAll("input:checked")).map((i) => i.value) : [];
+  }
 
-  // Repuebla las opciones de AMBOS multiselects según la selección vigente
-  // del otro (coherencia, ACT14 punto 2 / ACT15 punto 1): si hay Semanas
-  // elegidas, Mes sólo ofrece los meses compatibles con esa UNIÓN de
-  // semanas (y viceversa) — podando de la selección actual cualquier
-  // valor que haya dejado de ser válido (p. ej. al cambiar Año, que
-  // también entra en la relación Mes<->Semana), sin perder los que sí
-  // lo siguen siendo.
-  function _poblarSelectsMesSemana() {
-    if (!document.getElementById("morb-mes-menu") || !document.getElementById("morb-semana-menu")) return;
-    const mesesActuales = _mesesSeleccionados();
-    const semanasActuales = _semanasSeleccionadas();
+  // ---- Año (comparar) — global para ambos bloques. ----
+  function leerAniosSeleccionados() { return _leerMarcados("morb-anio-menu"); }
+  function _aniosEnAlcance() {
+    const marcados = leerAniosSeleccionados();
+    return marcados.length ? marcados.slice().sort() : catalogosAnio.slice().sort();
+  }
+  function _textoComparativo(anios) { return `Comparativo ${anios.join(" vs ")}`; }
+  function periodoTexto(aniosSeleccionados) {
+    if (aniosSeleccionados.length === 1) return `${aniosSeleccionados[0]}`;
+    const anios = catalogosAnio.slice().sort();
+    return anios.length > 1 ? `el periodo ${anios[0]}–${anios[anios.length - 1]}` : (anios[0] ? `${anios[0]}` : "el periodo disponible");
+  }
+  function _notaAnioParcial(aniosSeleccionados) {
+    return (ANIO_PARCIAL && aniosSeleccionados.includes(ANIO_PARCIAL)) ? ` (${ANIO_PARCIAL} parcial: Ene-Sep)` : "";
+  }
+
+  function inicializarFiltroAnio() {
+    const menu = document.getElementById("morb-anio-menu");
+    const chipsEl = document.getElementById("morb-anio-chips");
+    const toggleBtn = document.getElementById("morb-anio-toggle");
+    const cont = document.getElementById("morb-anio-multiselect");
+    if (!menu || !chipsEl || !toggleBtn || !cont) return;
+    const valores = catalogosAnio.slice().sort();
+    menu.innerHTML = valores.map((v) => `
+      <label class="carga-anio-opcion"><input type="checkbox" value="${v}"> ${v}${v === ANIO_PARCIAL ? " (parcial)" : ""}</label>
+    `).join("");
+    function renderChips() {
+      const seleccionados = Array.from(menu.querySelectorAll("input:checked")).map((i) => i.value);
+      chipsEl.innerHTML = seleccionados.length
+        ? seleccionados.map((v) => `<span class="carga-anio-chip" data-valor="${v}">${v}${v === ANIO_PARCIAL ? " ⚠" : ""} <button type="button" aria-label="Quitar ${v}">&times;</button></span>`).join("")
+        : `<span class="text-muted" style="font-size:var(--fs-body-sm);">${_textoComparativo(valores)} (ningún año marcado)</span>`;
+    }
+    renderChips();
+    function _refrescarMesSemanaSiAplica() {
+      if (typeof _poblarSelectsMesSemanaP === "function") _poblarSelectsMesSemanaP();
+    }
+    menu.querySelectorAll("input[type=checkbox]").forEach((chk) => {
+      chk.addEventListener("change", () => { renderChips(); _refrescarMesSemanaSiAplica(); renderTableroH(); renderTableroP(); });
+    });
+    chipsEl.addEventListener("click", (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      const valor = btn.closest(".carga-anio-chip").dataset.valor;
+      const chk = Array.from(menu.querySelectorAll("input[type=checkbox]")).find((i) => i.value === valor);
+      if (chk) { chk.checked = false; renderChips(); _refrescarMesSemanaSiAplica(); renderTableroH(); renderTableroP(); }
+    });
+    toggleBtn.addEventListener("click", (e) => { e.stopPropagation(); menu.hidden = !menu.hidden; });
+    document.addEventListener("click", (e) => { if (!cont.contains(e.target)) menu.hidden = true; });
+  }
+  inicializarFiltroAnio();
+
+  // =======================================================================
+  // BLOQUE 1 — Mes (sin Semana: la Base de Casos Históricos no la trae)
+  // =======================================================================
+  function _mesesSeleccionadosH() { return _leerMarcados("morb-h-mes-menu"); }
+  function _poblarMesH() {
+    if (!document.getElementById("morb-h-mes-menu")) return;
+    const mesesActuales = _mesesSeleccionadosH();
+    const disponibles = (catH.meses || []).slice();
+    const validos = mesesActuales.filter((m) => disponibles.includes(m));
+    _renderMultiselectChips("morb-h-mes-menu", "morb-h-mes-chips", disponibles, (v) => v, validos, renderTableroH, "Todos");
+  }
+  if (document.getElementById("morb-h-mes-menu")) {
+    _initToggleMultiselect("morb-h-mes-toggle", "morb-h-mes-menu", "morb-h-mes-multiselect");
+    _poblarMesH();
+  }
+  function _filtrarPorMesH(rowsBase) {
+    const meses = _mesesSeleccionadosH();
+    if (!meses.length) return rowsBase;
+    const set = new Set(meses);
+    return rowsBase.filter((r) => set.has(String(r[idxH.mes])));
+  }
+  function _textoMesPeriodoH() {
+    const sel = _mesesSeleccionadosH();
+    if (!sel.length || sel.length === (catH.meses || []).length) return "";
+    const ordenados = sel.slice().sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+    if (ordenados.length === 1) return _nombreMesLargo(ordenados[0]);
+    const contiguo = ordenados.every((m, i) => i === 0 || parseInt(m, 10) === parseInt(ordenados[i - 1], 10) + 1);
+    return contiguo ? `${_nombreMesLargo(ordenados[0])}–${_nombreMesLargo(ordenados[ordenados.length - 1])}` : ordenados.map(_nombreMesLargo).join(", ");
+  }
+  function _periodoCompletoTextoH(aniosSeleccionados, modoComparativo) {
+    const base = modoComparativo ? _textoComparativo(aniosSeleccionados) : periodoTexto(aniosSeleccionados);
+    const sufijo = _textoMesPeriodoH();
+    return (sufijo ? `${base} | ${sufijo}` : base) + _notaAnioParcial(aniosSeleccionados);
+  }
+  function _periodoTituloTextoH(aniosSeleccionados, modoComparativo) {
+    const base = modoComparativo ? `comparativo ${aniosSeleccionados.join(" vs ")}` : periodoTexto(aniosSeleccionados);
+    const sufijo = _textoMesPeriodoH();
+    return sufijo ? `${base} | ${sufijo}` : base;
+  }
+  function _conSufijoPeriodoH(texto) {
+    const sufijo = _textoMesPeriodoH();
+    return sufijo ? `${texto} — ${sufijo}` : texto;
+  }
+  function _mesesEnAlcanceH() {
+    const sel = _mesesSeleccionadosH();
+    const catalogo = (catH.meses || []).slice();
+    return sel.length ? catalogo.filter((m) => sel.includes(m)) : catalogo;
+  }
+
+  // ---- Filtros Bloque 1: Municipio / Jurisdicción / Institución / Unidad
+  // médica (Unidad médica es dimensión NUEVA: antes no existía en ninguna
+  // base del proyecto) ----
+  const filterDefsH = {
+    municipio_morbilidad: { label: "Municipio", options: () => catH.municipios },
+    jurisdiccion_morbilidad: { label: "Jurisdicción sanitaria", options: () => catH.jurisdicciones },
+    institucion_morbilidad: { label: "Institución", options: () => catH.instituciones },
+    unidad_medica_morbilidad: { label: "Unidad médica", options: () => catH.unidadesMedicas },
+  };
+  Object.assign(SNSP_FILTER_DEFS, filterDefsH);
+  SNSP_renderFilterBar("filter-bar-h", Object.keys(filterDefsH), (filters) => {
+    currentFiltersH = filters;
+    renderTableroH();
+    window.SNSP_AUTH.logAction("aplicar_filtros", `Módulo: Morbilidad (Bloque 1) — ${JSON.stringify(currentFiltersH)}`);
+  });
+
+  const selMedidaH = document.getElementById("morb-h-select-medida");
+  const selDimH = document.getElementById("morb-h-select-dim");
+  if (!poblacionDisponible && selMedidaH) {
+    Array.from(selMedidaH.options).forEach((opt) => { if (opt.value !== "casos") opt.disabled = true; });
+    selMedidaH.value = "casos";
+  }
+  // Tasa sólo disponible para Municipio/Jurisdicción/Grupo de edad (ver
+  // DIMENSIONES_CON_TASA_VALIDA) — nunca Institución/Unidad médica/Sexo.
+  function _actualizarDisponibilidadTasaH() {
+    if (!selMedidaH || !selDimH) return;
+    const tasaOpt = Array.from(selMedidaH.options).find((o) => o.value === "tasa");
+    if (!tasaOpt) return;
+    const valido = poblacionDisponible && DIMENSIONES_CON_TASA_VALIDA.has(selDimH.value);
+    tasaOpt.disabled = !valido;
+    if (!valido && selMedidaH.value === "tasa") selMedidaH.value = "casos";
+  }
+  if (selMedidaH) selMedidaH.addEventListener("change", renderTableroH);
+  if (selDimH) selDimH.addEventListener("change", () => { _actualizarDisponibilidadTasaH(); renderTableroH(); });
+  _actualizarDisponibilidadTasaH();
+
+  const selPrincipalTopNH = document.getElementById("morb-h-principal-topn");
+  if (selPrincipalTopNH) selPrincipalTopNH.addEventListener("change", renderTableroH);
+
+  function nombreMedidaH() {
+    if (!selMedidaH) return "Casos";
+    if (selMedidaH.value === "poblacion") return "Población";
+    if (selMedidaH.value === "tasa") return "Tasa (por 100,000 hab.)";
+    return "Casos";
+  }
+  function _filtrosActivosH() {
+    const list = [];
+    if (currentFiltersH.municipio_morbilidad) list.push({ colIdx: idxH.municipio, valor: currentFiltersH.municipio_morbilidad });
+    if (currentFiltersH.jurisdiccion_morbilidad) list.push({ colIdx: idxH.jurisdiccion, valor: currentFiltersH.jurisdiccion_morbilidad });
+    if (currentFiltersH.institucion_morbilidad) list.push({ colIdx: idxH.institucion, valor: currentFiltersH.institucion_morbilidad });
+    if (currentFiltersH.unidad_medica_morbilidad) list.push({ colIdx: idxH.unidad_medica, valor: currentFiltersH.unidad_medica_morbilidad });
+    return list;
+  }
+  function lugarTextoH() {
+    const f = currentFiltersH;
+    if (f.municipio_morbilidad) return `el municipio de ${f.municipio_morbilidad}`;
+    if (f.jurisdiccion_morbilidad) return `la Jurisdicción Sanitaria de ${f.jurisdiccion_morbilidad}`;
+    if (f.institucion_morbilidad) return `la institución ${f.institucion_morbilidad}`;
+    if (f.unidad_medica_morbilidad) return `la unidad médica ${f.unidad_medica_morbilidad}`;
+    return "el estado de Querétaro";
+  }
+
+  function _calcularTotalesH(filtrosParaAgregar) {
+    const resultados = svcCarga.agregarConPoblacion(rowsHFiltradas, idxH.municipio, idxH.casos, filtrosParaAgregar, joinCols, poblacionIndex.mapa);
+    let totalCasos = 0, totalPoblacion = 0, hayPoblacion = false;
+    resultados.forEach((r) => {
+      totalCasos += r.valorCasos;
+      if (r.poblacion !== null && r.poblacion !== undefined) { totalPoblacion += r.poblacion; hayPoblacion = true; }
+    });
+    const tasaGlobal = (hayPoblacion && totalPoblacion > 0) ? (totalCasos / totalPoblacion) * 100000 : null;
+    return { totalCasos, totalPoblacion: hayPoblacion ? totalPoblacion : null, tasaGlobal };
+  }
+
+  // -----------------------------------------------------------------------
+  // Panorama de Casos — Bloque 1: Municipio, Jurisdicción, Institución,
+  // Unidad médica (NUEVO), Grupo de edad, Sexo, Tendencia por año/mes,
+  // Comparativo por mes y año. Todos de Casos únicamente.
+  // -----------------------------------------------------------------------
+  const panoramaCharts = {}; // canvasId -> instancia Chart (compartido entre los 2 bloques: ids únicos)
+  function _destruirPanorama(canvasId) {
+    if (panoramaCharts[canvasId]) { panoramaCharts[canvasId].destroy(); panoramaCharts[canvasId] = null; }
+  }
+
+  function renderChartMunicipio(filtrosActivos, aniosSeleccionados, modoComparativo) {
+    _destruirPanorama("morb-h-chart-municipio");
+    const municipiosTodos = (catH.municipios || []).slice();
+    const tituloPartes = { indicador: "Casos", dimension: "municipio", padecimiento: null, lugar: lugarTextoH(), periodo: _periodoTituloTextoH(aniosSeleccionados, modoComparativo) };
+    let categorias;
+    if (modoComparativo) {
+      const resultados = svcCarga.agregarComparativo(rowsHFiltradas, idxH.municipio, idxH.casos, filtrosActivos, idxH.anio, aniosSeleccionados);
+      const mapa = {};
+      resultados.forEach((r) => { mapa[r.categoria] = r.valores; });
+      categorias = municipiosTodos.slice().sort((a, b) => {
+        const ta = aniosSeleccionados.reduce((s, y) => s + ((mapa[a] && mapa[a][y]) || 0), 0);
+        const tb = aniosSeleccionados.reduce((s, y) => s + ((mapa[b] && mapa[b][y]) || 0), 0);
+        return tb - ta;
+      });
+      const seriesPorAnio = aniosSeleccionados.map((y) => ({ label: y, data: categorias.map((c) => (mapa[c] && mapa[c][y]) || 0) }));
+      _ajustarAlturaBarra("morb-h-wrap-municipio", categorias, modoComparativo, aniosSeleccionados.length);
+      panoramaCharts["morb-h-chart-municipio"] = SNSP_renderGroupedBarChart("morb-h-chart-municipio", categorias, seriesPorAnio, "Casos", Object.assign({ horizontal: true, wrapAt: 26, tituloPartes }, _morbBarraOpts(modoComparativo)));
+    } else {
+      const filtrosConAnio = aniosSeleccionados.length === 1 ? filtrosActivos.concat([{ colIdx: idxH.anio, valor: aniosSeleccionados[0] }]) : filtrosActivos;
+      const resultados = svcCarga.agregar(rowsHFiltradas, idxH.municipio, idxH.casos, filtrosConAnio);
+      const mapa = {};
+      resultados.forEach((r) => { mapa[r.categoria] = r.valor; });
+      categorias = municipiosTodos.slice().sort((a, b) => (mapa[b] || 0) - (mapa[a] || 0));
+      _ajustarAlturaBarra("morb-h-wrap-municipio", categorias, modoComparativo, aniosSeleccionados.length);
+      panoramaCharts["morb-h-chart-municipio"] = SNSP_renderBarChart("morb-h-chart-municipio", categorias, categorias.map((c) => mapa[c] || 0), "Casos", Object.assign({ horizontal: true, wrapAt: 26, tituloPartes }, _morbBarraOpts(modoComparativo)));
+    }
+    const subt = document.getElementById("morb-h-subt-municipio");
+    if (subt) {
+      const conteo = _contarCategoriasConDatos(panoramaCharts["morb-h-chart-municipio"]);
+      subt.textContent = (conteo && conteo.conDatos < conteo.total)
+        ? `${conteo.conDatos} de ${conteo.total} municipios con casos en el periodo — se muestran los ${conteo.total} para poder comparar años (0 = sin casos registrados)`
+        : `Los 18 municipios, incluidos los que no registran casos en la selección`;
+    }
+  }
+
+  function _renderPanelH(canvasId, wrapId, dimIdx, nombreDim, filtrosActivos, aniosSeleccionados, modoComparativo, opts) {
+    opts = opts || {};
+    _destruirPanorama(canvasId);
+    let categorias, valores, seriesPorAnio, totalCategorias;
+    if (modoComparativo) {
+      let resultados = svcCarga.agregarComparativo(rowsHFiltradas, dimIdx, idxH.casos, filtrosActivos, idxH.anio, aniosSeleccionados);
+      totalCategorias = resultados.length;
+      if (opts.limitTop) resultados = resultados.slice(0, opts.limitTop);
+      categorias = resultados.map((r) => r.categoria);
+      seriesPorAnio = aniosSeleccionados.map((y) => ({ label: y, data: resultados.map((r) => r.valores[y] || 0) }));
+    } else {
+      const filtrosConAnio = aniosSeleccionados.length === 1 ? filtrosActivos.concat([{ colIdx: idxH.anio, valor: aniosSeleccionados[0] }]) : filtrosActivos;
+      let resultados = svcCarga.agregar(rowsHFiltradas, dimIdx, idxH.casos, filtrosConAnio);
+      totalCategorias = resultados.length;
+      if (opts.limitTop) resultados = resultados.slice(0, opts.limitTop);
+      categorias = resultados.map((r) => r.categoria);
+      valores = resultados.map((r) => r.valor);
+    }
+    _ajustarAlturaBarra(wrapId, categorias, modoComparativo, aniosSeleccionados.length);
+    const tituloPartes = { indicador: "Casos", dimension: nombreDim, padecimiento: null, lugar: lugarTextoH(), periodo: _periodoTituloTextoH(aniosSeleccionados, modoComparativo) };
+    const barraOpts = Object.assign({ horizontal: true, wrapAt: 26, tituloPartes }, _morbBarraOpts(modoComparativo));
+    if (modoComparativo) {
+      panoramaCharts[canvasId] = SNSP_renderGroupedBarChart(canvasId, categorias, seriesPorAnio, "Casos", barraOpts);
+    } else {
+      panoramaCharts[canvasId] = SNSP_renderBarChart(canvasId, categorias, valores, "Casos", barraOpts);
+    }
+    return { mostradas: categorias.length, total: totalCategorias };
+  }
+
+  function renderChartJurisdiccion(filtrosActivos, aniosSeleccionados, modoComparativo) {
+    _destruirPanorama("morb-h-chart-jurisdiccion");
+    const subt = document.getElementById("morb-h-subt-jurisdiccion");
+    if (modoComparativo) {
+      if (subt) subt.textContent = _periodoCompletoTextoH(aniosSeleccionados, true);
+      _renderPanelH("morb-h-chart-jurisdiccion", "morb-h-wrap-jurisdiccion", idxH.jurisdiccion, "jurisdicción sanitaria", filtrosActivos, aniosSeleccionados, true);
+    } else {
+      if (subt) subt.textContent = _conSufijoPeriodoH("Distribución porcentual dentro de la selección vigente");
+      const filtrosConAnio = aniosSeleccionados.length === 1 ? filtrosActivos.concat([{ colIdx: idxH.anio, valor: aniosSeleccionados[0] }]) : filtrosActivos;
+      const resultados = svcCarga.agregar(rowsHFiltradas, idxH.jurisdiccion, idxH.casos, filtrosConAnio);
+      document.getElementById("morb-h-wrap-jurisdiccion").style.height = "380px";
+      const tituloPartes = { indicador: "Casos", dimension: "jurisdicción sanitaria", padecimiento: null, lugar: lugarTextoH(), periodo: _periodoTituloTextoH(aniosSeleccionados, false) };
+      panoramaCharts["morb-h-chart-jurisdiccion"] = SNSP_renderDoughnut("morb-h-chart-jurisdiccion", resultados.map((r) => r.categoria), resultados.map((r) => r.valor), { tituloPartes });
+    }
+  }
+  function renderChartInstitucion(filtrosActivos, aniosSeleccionados, modoComparativo) {
+    _renderPanelH("morb-h-chart-institucion", "morb-h-wrap-institucion", idxH.institucion, "institución", filtrosActivos, aniosSeleccionados, modoComparativo);
+  }
+  function renderChartUnidadMedica(filtrosActivos, aniosSeleccionados, modoComparativo) {
+    const topN = 20; // 383 unidades médicas: se recorta a las 20 de mayor valor para que el panel sea legible; el total real se muestra en el subtítulo.
+    const resultado = _renderPanelH("morb-h-chart-unidadmedica", "morb-h-wrap-unidadmedica", idxH.unidad_medica, "unidad médica", filtrosActivos, aniosSeleccionados, modoComparativo, { limitTop: topN });
+    const subt = document.getElementById("morb-h-subt-unidadmedica");
+    if (subt) {
+      subt.textContent = resultado.total > topN
+        ? `Top ${topN} de ${resultado.total} unidades médicas con casos en la selección vigente`
+        : `Todas las unidades médicas con casos en la selección vigente (${resultado.total})`;
+    }
+  }
+  function renderChartGrupoEdad(filtrosActivos, aniosSeleccionados, modoComparativo) {
+    _renderPanelH("morb-h-chart-grupoedad", "morb-h-wrap-grupoedad", idxH.grupo_edad, "grupo de edad", filtrosActivos, aniosSeleccionados, modoComparativo);
+  }
+  function renderChartSexoH(filtrosActivos, aniosSeleccionados, modoComparativo) {
+    _destruirPanorama("morb-h-chart-sexo");
+    const subt = document.getElementById("morb-h-subt-sexo");
+    if (subt) subt.textContent = modoComparativo ? _periodoCompletoTextoH(aniosSeleccionados, true) : _conSufijoPeriodoH("Distribución dentro de la selección vigente");
+    _renderPanelH("morb-h-chart-sexo", "morb-h-wrap-sexo", idxH.sexo, "sexo", filtrosActivos, aniosSeleccionados, modoComparativo);
+  }
+
+  function renderChartTendenciaH(filtrosActivos, aniosSeleccionados) {
+    _destruirPanorama("morb-h-chart-tendencia");
+    const subt = document.getElementById("morb-h-subt-tendencia");
+    const aniosEnAlcance = aniosSeleccionados.length ? aniosSeleccionados.slice().sort() : catalogosAnio.slice().sort();
+    const multiAnio = aniosEnAlcance.length > 1;
+    if (subt) subt.textContent = multiAnio ? _periodoCompletoTextoH(aniosEnAlcance, true) : _conSufijoPeriodoH(`Evolución mensual ${aniosEnAlcance[0] || ""}`) + _notaAnioParcial(aniosEnAlcance);
+    const mesesEnAlcance = _mesesEnAlcanceH();
+    function serieDeAnio(anio) {
+      return mesesEnAlcance.map((mes) => {
+        const filtros = filtrosActivos.concat([{ colIdx: idxH.anio, valor: anio }, { colIdx: idxH.mes, valor: mes }]);
+        const resultados = svcCarga.agregar(rowsHFiltradas, idxH.mes, idxH.casos, filtros);
+        if (!resultados.length) return null;
+        return resultados.reduce((s, r) => s + r.valor, 0);
+      });
+    }
+    const etiquetas = mesesEnAlcance.map(_nombreMes);
+    const series = aniosEnAlcance.map((anio) => ({ label: anio, data: serieDeAnio(anio) }));
+    const tituloPartes = { indicador: "Casos", dimension: "mes", padecimiento: null, lugar: lugarTextoH(), periodo: _periodoTituloTextoH(aniosEnAlcance, multiAnio) };
+    panoramaCharts["morb-h-chart-tendencia"] = SNSP_renderLineChart("morb-h-chart-tendencia", etiquetas, series, Object.assign({ tituloPartes }, MORB_OPTS_ETIQUETA_MENSUAL));
+  }
+  function renderChartMesAnioH(filtrosActivos, aniosSeleccionados) {
+    _destruirPanorama("morb-h-chart-mesanio");
+    const subt = document.getElementById("morb-h-subt-mesanio");
+    const aniosEnAlcance = aniosSeleccionados.length ? aniosSeleccionados.slice().sort() : catalogosAnio.slice().sort();
+    const multiAnio = aniosEnAlcance.length > 1;
+    if (subt) subt.textContent = (multiAnio ? _periodoCompletoTextoH(aniosEnAlcance, true) : _conSufijoPeriodoH(`Estacionalidad ${aniosEnAlcance[0] || ""}`)) + (multiAnio ? "" : _notaAnioParcial(aniosEnAlcance));
+    const mesesEnAlcance = _mesesEnAlcanceH();
+    const etiquetas = mesesEnAlcance.map(_nombreMes);
+    const tituloPartes = { indicador: "Casos", dimension: "mes", padecimiento: null, lugar: lugarTextoH(), periodo: _periodoTituloTextoH(aniosEnAlcance, multiAnio) };
+    function valoresDeAnio(anio) {
+      return mesesEnAlcance.map((mes) => {
+        const filtros = filtrosActivos.concat([{ colIdx: idxH.anio, valor: anio }, { colIdx: idxH.mes, valor: mes }]);
+        const resultados = svcCarga.agregar(rowsHFiltradas, idxH.mes, idxH.casos, filtros);
+        if (!resultados.length) return null;
+        return resultados.reduce((s, r) => s + r.valor, 0);
+      });
+    }
+    if (multiAnio) {
+      const series = aniosEnAlcance.map((anio) => ({ label: anio, data: valoresDeAnio(anio) }));
+      panoramaCharts["morb-h-chart-mesanio"] = SNSP_renderGroupedBarChart("morb-h-chart-mesanio", etiquetas, series, "Casos", Object.assign({ wrapAt: 26, tituloPartes }, _morbBarraOpts(true), MORB_OPTS_ETIQUETA_MENSUAL));
+    } else {
+      const valores = valoresDeAnio(aniosEnAlcance[0]);
+      panoramaCharts["morb-h-chart-mesanio"] = SNSP_renderBarChart("morb-h-chart-mesanio", etiquetas, valores, "Casos", Object.assign({ wrapAt: 26, tituloPartes }, _morbBarraOpts(false), MORB_OPTS_ETIQUETA_MENSUAL));
+    }
+  }
+
+  function renderPanoramaH() {
+    const filtrosActivos = _filtrosActivosH();
+    const aniosSeleccionados = _aniosEnAlcance();
+    const modoComparativo = aniosSeleccionados.length >= 2;
+    renderChartMunicipio(filtrosActivos, aniosSeleccionados, modoComparativo);
+    renderChartJurisdiccion(filtrosActivos, aniosSeleccionados, modoComparativo);
+    renderChartInstitucion(filtrosActivos, aniosSeleccionados, modoComparativo);
+    renderChartUnidadMedica(filtrosActivos, aniosSeleccionados, modoComparativo);
+    renderChartGrupoEdad(filtrosActivos, aniosSeleccionados, modoComparativo);
+    renderChartSexoH(filtrosActivos, aniosSeleccionados, modoComparativo);
+    renderChartTendenciaH(filtrosActivos, aniosSeleccionados);
+    renderChartMesAnioH(filtrosActivos, aniosSeleccionados);
+  }
+
+  function renderTableroH() {
+    if (!document.getElementById("morb-h-chart")) return; // Bloque 1 no está en el DOM (defensivo, pruebas)
+    if (chartH) { chartH.destroy(); chartH = null; }
+    rowsHFiltradas = _filtrarPorMesH(rowsH);
+
+    const filtrosActivos = _filtrosActivosH();
+    const aniosSeleccionados = _aniosEnAlcance();
+    const modoComparativo = aniosSeleccionados.length >= 2;
+    const dimKey = selDimH.value;
+    const dimIdx = dimColMapH[dimKey];
+    const nombreDim = dimLabelMapH[dimKey];
+    const medida = nombreMedidaH();
+    const campo = selMedidaH.value === "poblacion" ? "poblacion" : (selMedidaH.value === "tasa" ? "tasa" : "valorCasos");
+
+    const filtrosParaTotales = aniosSeleccionados.length === 1
+      ? filtrosActivos.concat([{ colIdx: idxH.anio, valor: aniosSeleccionados[0] }])
+      : filtrosActivos;
+    const filasConsideradas = rowsHFiltradas.filter((r) => {
+      if (!filtrosActivos.every((f) => String(r[f.colIdx] || "").trim() === f.valor)) return false;
+      if (aniosSeleccionados.length === 1) return String(r[idxH.anio] || "").trim() === aniosSeleccionados[0];
+      return true;
+    }).length;
+
+    let agregado;
+    if (modoComparativo) {
+      const resultados = svcCarga.agregarComparativoConPoblacion(
+        rowsHFiltradas, dimIdx, idxH.casos, filtrosActivos, idxH.anio, aniosSeleccionados, joinCols, poblacionIndex.mapa
+      );
+      agregado = resultados.map((r) => {
+        const valores = {};
+        aniosSeleccionados.forEach((y) => {
+          const datoAnio = r.valores[y];
+          let v = datoAnio ? datoAnio[campo] : null;
+          if (campo === "tasa") { if (v !== null && v !== undefined) v = Math.round(v * 10) / 10; }
+          else if (v === null || v === undefined) v = 0;
+          valores[y] = v;
+        });
+        return { categoria: r.categoria, valores };
+      });
+      agregado.sort((a, b) => {
+        const totalA = aniosSeleccionados.reduce((s, y) => s + (typeof a.valores[y] === "number" ? a.valores[y] : 0), 0);
+        const totalB = aniosSeleccionados.reduce((s, y) => s + (typeof b.valores[y] === "number" ? b.valores[y] : 0), 0);
+        return totalB - totalA;
+      });
+    } else {
+      const resultados = svcCarga.agregarConPoblacion(rowsHFiltradas, dimIdx, idxH.casos, filtrosParaTotales, joinCols, poblacionIndex.mapa);
+      agregado = resultados.map((r) => {
+        let v = r[campo];
+        if (campo === "tasa") { if (v !== null && v !== undefined) v = Math.round(v * 10) / 10; }
+        else if (v === null || v === undefined) v = 0;
+        return { categoria: r.categoria, valor: v };
+      });
+      agregado.sort((a, b) => (typeof b.valor === "number" ? b.valor : -1) - (typeof a.valor === "number" ? a.valor : -1));
+    }
+
+    const totalCategorias = agregado.length;
+    // El selector "Mostrar" aplica a CUALQUIER "Por" (a diferencia de la
+    // versión 2025-2026, donde sólo hacía falta para Padecimiento): ahora
+    // Unidad médica puede llegar a 383 categorías, así que el recorte es
+    // igual de necesario ahí. Para Municipio/Jurisdicción/Institución/
+    // Grupo de edad/Sexo (≤18 categorías) el Top N por defecto (20) nunca
+    // recorta nada en la práctica — se deja aplicado de todas formas por
+    // simplicidad, sin cambiar ningún total ni KPI (esos se calculan ANTES
+    // de recortar, ver totalCategorias arriba).
+    const topNAplicado = selPrincipalTopNH ? _leerTopN(selPrincipalTopNH) : null;
+    const agregadoDibujo = topNAplicado ? agregado.slice(0, topNAplicado) : agregado;
+    const subtPrincipal = document.getElementById("morb-h-subt-principal");
+    if (subtPrincipal) {
+      subtPrincipal.textContent = (topNAplicado && totalCategorias > topNAplicado)
+        ? `Se actualiza automáticamente con Analizar, Por, Año y los filtros — Top ${topNAplicado} de ${totalCategorias} categorías de ${nombreDim}`
+        : "Se actualiza automáticamente con Analizar, Por, Año y los filtros";
+    }
+
+    _ajustarAlturaBarra("morb-h-chart-wrap", agregadoDibujo.map((r) => r.categoria), modoComparativo, aniosSeleccionados.length);
+    const chartWrapMinimo = document.getElementById("morb-h-chart-wrap");
+    if (chartWrapMinimo && parseFloat(chartWrapMinimo.style.height) < 420) chartWrapMinimo.style.height = "420px";
+
+    const tituloPartes = { indicador: medida, dimension: nombreDim, padecimiento: null, lugar: lugarTextoH(), periodo: _periodoTituloTextoH(aniosSeleccionados, modoComparativo) };
+
+    if (modoComparativo) {
+      chartH = SNSP_renderGroupedBarChart(
+        "morb-h-chart", agregadoDibujo.map((r) => r.categoria),
+        aniosSeleccionados.map((y) => ({ label: y, data: agregadoDibujo.map((r) => (typeof r.valores[y] === "number" ? r.valores[y] : 0)) })),
+        medida, Object.assign({ horizontal: true, wrapAt: 34, tituloPartes }, _morbBarraOpts(modoComparativo))
+      );
+    } else {
+      chartH = SNSP_renderBarChart(
+        "morb-h-chart", agregadoDibujo.map((r) => r.categoria), agregadoDibujo.map((r) => (typeof r.valor === "number" ? r.valor : 0)),
+        medida, Object.assign({ horizontal: true, wrapAt: 34, tituloPartes }, _morbBarraOpts(modoComparativo))
+      );
+    }
+    if (chartH) {
+      if (!chartH.options.scales) chartH.options.scales = {};
+      if (!chartH.options.scales.y) chartH.options.scales.y = {};
+      chartH.options.scales.y.ticks = Object.assign({}, chartH.options.scales.y.ticks, { autoSkip: false });
+      chartH.options.animation = false;
+      chartH.update();
+    }
+
+    function _fmtValor(v) {
+      if (v === null || v === undefined) return "No aplica";
+      return campo === "tasa" ? v.toLocaleString("es-MX", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : Math.round(v).toLocaleString("es-MX");
+    }
+
+    if (modoComparativo) {
+      const hayDiferencia = aniosSeleccionados.length === 2;
+      document.getElementById("morb-h-tabla-head").innerHTML =
+        `<tr><th>#</th><th>Categoría</th>` + aniosSeleccionados.map((y) => `<th>${medida} ${y}</th>`).join("") +
+        (hayDiferencia ? `<th>Diferencia</th><th>Variación %</th>` : "") + `</tr>`;
+      document.getElementById("morb-h-tabla-body").innerHTML = agregadoDibujo.map((r, i) => {
+        const vals = aniosSeleccionados.map((y) => r.valores[y]);
+        let extra = "";
+        if (hayDiferencia) {
+          const a = vals[0], b = vals[1];
+          if (typeof a !== "number" || typeof b !== "number") {
+            extra = `<td>—</td><td>—</td>`;
+          } else {
+            const diff = b - a;
+            const variacion = a > 0 ? (diff / a) * 100 : null;
+            const color = diff > 0 ? "var(--accent-positive)" : (diff < 0 ? "var(--accent-alert)" : "inherit");
+            const signo = diff > 0 ? "+" : "";
+            extra = `<td style="color:${color};">${signo}${campo === "tasa" ? diff.toFixed(1) : diff.toLocaleString("es-MX")}</td>` +
+              `<td style="color:${color};">${variacion === null ? "—" : (variacion > 0 ? "+" : "") + variacion.toFixed(1) + "%"}</td>`;
+          }
+        }
+        return `<tr><td><span class="rank-badge ${i < 3 ? "top" : ""}">${i + 1}</span></td><td class="col-text">${r.categoria}</td>${vals.map((v) => `<td>${_fmtValor(v)}</td>`).join("")}${extra}</tr>`;
+      }).join("");
+      document.getElementById("morb-h-tabla-count").textContent =
+        `${agregadoDibujo.length.toLocaleString("es-MX")} categorías de ${nombreDim}` +
+        (topNAplicado && totalCategorias > topNAplicado ? ` (Top ${topNAplicado} de ${totalCategorias})` : "") +
+        ` — ${_periodoCompletoTextoH(aniosSeleccionados, true)}`;
+    } else {
+      document.getElementById("morb-h-tabla-head").innerHTML = `<tr><th>#</th><th>Categoría</th><th>${medida}</th></tr>`;
+      document.getElementById("morb-h-tabla-body").innerHTML = agregadoDibujo.map((r, i) => `
+        <tr><td><span class="rank-badge ${i < 3 ? "top" : ""}">${i + 1}</span></td><td class="col-text">${r.categoria}</td><td>${_fmtValor(r.valor)}</td></tr>
+      `).join("");
+      document.getElementById("morb-h-tabla-count").textContent =
+        `${agregadoDibujo.length.toLocaleString("es-MX")} categorías de ${nombreDim}` +
+        (topNAplicado && totalCategorias > topNAplicado ? ` (Top ${topNAplicado} de ${totalCategorias})` : "");
+    }
+
+    const totales = _calcularTotalesH(filtrosParaTotales);
+    let kpiValor, kpiLabel, kpiFootnote;
+    if (selMedidaH.value === "poblacion") {
+      kpiLabel = "Población relacionada";
+      kpiValor = totales.totalPoblacion !== null ? Math.round(totales.totalPoblacion).toLocaleString("es-MX") : "No aplica";
+      kpiFootnote = totales.totalPoblacion !== null ? "Suma sin duplicar, por Año+Municipio+Grupo de edad" : "Sin población relacionada para esta selección";
+    } else if (selMedidaH.value === "tasa") {
+      kpiLabel = "Tasa global (por 100,000 hab.)";
+      kpiValor = totales.tasaGlobal !== null ? totales.tasaGlobal.toLocaleString("es-MX", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : "No aplica";
+      kpiFootnote = totales.tasaGlobal !== null
+        ? `${totales.totalCasos.toLocaleString("es-MX")} casos / ${Math.round(totales.totalPoblacion).toLocaleString("es-MX")} hab.`
+        : "Sin población relacionada para esta selección";
+    } else {
+      kpiLabel = "Casos totales";
+      kpiValor = totales.totalCasos.toLocaleString("es-MX");
+      kpiFootnote = lugarTextoH();
+    }
+
+    document.getElementById("kpi-grid-h").innerHTML = [
+      { label: "Combinaciones en la base", value: rowsH.length.toLocaleString("es-MX"), accent: "var(--c-vino)", footnote: `${datosH.meta.filas_originales.toLocaleString("es-MX")} filas originales agregadas` },
+      { label: "Filas consideradas", value: filasConsideradas.toLocaleString("es-MX"), accent: "var(--c-dorado)", footnote: filtrosActivos.length ? "Con los filtros aplicados" : "Sin filtros aplicados" },
+      { label: "Categorías encontradas", value: totalCategorias.toLocaleString("es-MX"), accent: "var(--c-verde-claro)", footnote: (topNAplicado && totalCategorias > topNAplicado) ? `${nombreDim} — mostrando Top ${topNAplicado}` : nombreDim },
+      { label: kpiLabel, value: kpiValor, accent: "var(--c-rojo-claro)", footnote: kpiFootnote },
+    ].map(SNSP_indicatorCardHTML).join("");
+
+    renderPanoramaH();
+  }
+
+  function _leerTopN(sel) {
+    if (!sel) return 10;
+    if (sel.value === "todos") return null;
+    const n = parseInt(sel.value, 10);
+    return isNaN(n) ? 10 : n;
+  }
+
+  // =======================================================================
+  // BLOQUE 2 — Padecimientos (Casos únicamente; NUNCA Población/Tasa, NUNCA
+  // cruzado con Municipio/Jurisdicción/Institución/Unidad médica)
+  // =======================================================================
+  function buscarPadecimientos(texto, limit) {
+    const q = _norm(texto);
+    let results = catalogoPadecimientos;
+    if (q) {
+      results = results.filter((p) =>
+        _norm(p.padecimiento).includes(q) ||
+        _norm(p.epiclave).includes(q) ||
+        _norm(p.cie10_texto).includes(q) ||
+        (p.cie10_codigos || []).some((c) => _norm(c).includes(q)) ||
+        (p.cie10_prefijos || []).some((c) => _norm(c).includes(q))
+      );
+    }
+    return limit ? results.slice(0, limit) : results;
+  }
+
+  const BUSCADORES_PADECIMIENTO = [
+    { inputId: "cie10-search", boxId: "cie10-resultados" },
+    { inputId: "cie10-search-cie10", boxId: "cie10-resultados-cie10" },
+    { inputId: "cie10-search-epiclave", boxId: "cie10-resultados-epiclave" },
+  ];
+
+  function renderResultadosBusqueda(texto, boxId) {
+    const box = document.getElementById(boxId);
+    if (!box) return;
+    const resultados = buscarPadecimientos(texto, 25);
+    if (!texto) { box.innerHTML = ""; box.style.display = "none"; return; }
+    if (!resultados.length) {
+      box.innerHTML = `<div class="cie10-suggestion cie10-suggestion--empty">Sin coincidencias en el catálogo disponible</div>`;
+      box.style.display = "block";
+      return;
+    }
+    box.innerHTML = resultados.map((p) => `
+      <button type="button" class="cie10-suggestion" data-epiclave="${p.epiclave}">
+        <span class="cie10-suggestion__code">${p.cie10_texto || "s/c"}</span>
+        <span class="cie10-suggestion__label">${p.padecimiento}</span>
+        <span class="cie10-suggestion__epi">Epi-clave ${p.epiclave}</span>
+      </button>
+    `).join("");
+    box.style.display = "block";
+    box.querySelectorAll(".cie10-suggestion[data-epiclave]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        seleccionarPadecimiento(btn.getAttribute("data-epiclave"));
+        box.style.display = "none";
+      });
+    });
+  }
+
+  function seleccionarPadecimiento(epiclave) {
+    const p = catalogoPadecimientos.find((x) => x.epiclave === String(epiclave));
+    seleccionPadecimiento = p || null;
+    const etiqueta = p ? `${p.cie10_texto ? p.cie10_texto + " — " : ""}${p.padecimiento}` : "";
+    const selActual = document.getElementById("seleccion-actual");
+    if (selActual) {
+      selActual.innerHTML = etiqueta
+        ? `Consultando: <strong>${etiqueta}</strong> <button type="button" class="btn btn-ghost btn-sm" id="btn-limpiar-seleccion">Quitar</button>`
+        : "";
+    }
+    const limpiarBtn = document.getElementById("btn-limpiar-seleccion");
+    if (limpiarBtn) limpiarBtn.addEventListener("click", () => {
+      seleccionPadecimiento = null;
+      if (selActual) selActual.innerHTML = "";
+      BUSCADORES_PADECIMIENTO.forEach((b) => { const inp = document.getElementById(b.inputId); if (inp) inp.value = ""; });
+      renderTableroP();
+    });
+    const inpPad = document.getElementById("cie10-search");
+    const inpCie10 = document.getElementById("cie10-search-cie10");
+    const inpEpi = document.getElementById("cie10-search-epiclave");
+    if (inpPad) inpPad.value = p ? p.padecimiento : "";
+    if (inpCie10) inpCie10.value = p && p.cie10_texto ? p.cie10_texto : "";
+    if (inpEpi) inpEpi.value = p ? p.epiclave : "";
+    renderTableroP();
+  }
+
+  BUSCADORES_PADECIMIENTO.forEach(({ inputId, boxId }) => {
+    const input = document.getElementById(inputId);
+    if (input) input.addEventListener("input", (e) => renderResultadosBusqueda(e.target.value, boxId));
+  });
+  document.addEventListener("click", (e) => {
+    BUSCADORES_PADECIMIENTO.forEach(({ inputId, boxId }) => {
+      const input = document.getElementById(inputId);
+      const box = document.getElementById(boxId);
+      if (input && box && !input.parentElement.contains(e.target)) box.style.display = "none";
+    });
+  });
+
+  function _padecimientoTitulo() {
+    return seleccionPadecimiento ? `${seleccionPadecimiento.cie10_texto ? seleccionPadecimiento.cie10_texto + " — " : ""}${seleccionPadecimiento.padecimiento}` : null;
+  }
+
+  // ---- Mes/Semana del Bloque 2 (coherentes entre sí y con Año, igual
+  // patrón que ACT14/ACT15, ahora exclusivo de este bloque) ----
+  function _mesesSeleccionadosP() { return _leerMarcados("morb-p-mes-menu"); }
+  function _semanasSeleccionadasP() { return _leerMarcados("morb-p-semana-menu"); }
+  function _semanasCompatiblesConMes(mes) {
+    const set = new Set();
+    _aniosEnAlcance().forEach((anio) => {
+      const info = mesSemanaMeta[anio];
+      if (info && info.porMes && info.porMes[mes]) info.porMes[mes].forEach((s) => set.add(s));
+    });
+    return Array.from(set).sort();
+  }
+  function _mesesCompatiblesConSemana(semana) {
+    const set = new Set();
+    _aniosEnAlcance().forEach((anio) => {
+      const info = mesSemanaMeta[anio];
+      if (info && info.porSemana && info.porSemana[semana]) info.porSemana[semana].forEach((m) => set.add(m));
+    });
+    return Array.from(set).sort();
+  }
+  function _semanasCompatiblesConMeses(meses) {
+    if (!meses.length) return (catP.semanas || []).slice();
+    const set = new Set();
+    meses.forEach((mes) => _semanasCompatiblesConMes(mes).forEach((s) => set.add(s)));
+    return Array.from(set).sort();
+  }
+  function _mesesCompatiblesConSemanas(semanas) {
+    if (!semanas.length) return (catP.meses || []).slice();
+    const set = new Set();
+    semanas.forEach((semana) => _mesesCompatiblesConSemana(semana).forEach((m) => set.add(m)));
+    return Array.from(set).sort();
+  }
+  function _poblarSelectsMesSemanaP() {
+    if (!document.getElementById("morb-p-mes-menu") || !document.getElementById("morb-p-semana-menu")) return;
+    const mesesActuales = _mesesSeleccionadosP();
+    const semanasActuales = _semanasSeleccionadasP();
     const mesesDisponibles = _mesesCompatiblesConSemanas(semanasActuales);
     const semanasDisponibles = _semanasCompatiblesConMeses(mesesActuales);
     const mesesValidos = mesesActuales.filter((m) => mesesDisponibles.includes(m));
     const semanasValidas = semanasActuales.filter((s) => semanasDisponibles.includes(s));
-    _renderMultiselectChips("morb-mes-menu", "morb-mes-chips", mesesDisponibles, (v) => v, mesesValidos, _onMesSemanaChange, "Todos");
-    _renderMultiselectChips("morb-semana-menu", "morb-semana-chips", semanasDisponibles, (v) => "Semana " + v, semanasValidas, _onMesSemanaChange, "Todas");
+    _renderMultiselectChips("morb-p-mes-menu", "morb-p-mes-chips", mesesDisponibles, (v) => v, mesesValidos, _onMesSemanaChangeP, "Todos");
+    _renderMultiselectChips("morb-p-semana-menu", "morb-p-semana-chips", semanasDisponibles, (v) => "Semana " + v, semanasValidas, _onMesSemanaChangeP, "Todas");
   }
-  function _onMesSemanaChange() { _poblarSelectsMesSemana(); renderTablero(); }
-
-  if (document.getElementById("morb-mes-menu") && document.getElementById("morb-semana-menu")) {
-    _initToggleMultiselect("morb-mes-toggle", "morb-mes-menu", "morb-mes-multiselect");
-    _initToggleMultiselect("morb-semana-toggle", "morb-semana-menu", "morb-semana-multiselect");
-    _poblarSelectsMesSemana();
+  function _onMesSemanaChangeP() { _poblarSelectsMesSemanaP(); renderTableroP(); }
+  if (document.getElementById("morb-p-mes-menu") && document.getElementById("morb-p-semana-menu")) {
+    _initToggleMultiselect("morb-p-mes-toggle", "morb-p-mes-menu", "morb-p-mes-multiselect");
+    _initToggleMultiselect("morb-p-semana-toggle", "morb-p-semana-menu", "morb-p-semana-multiselect");
+    _poblarSelectsMesSemanaP();
   }
-
-  // ---- Pre-filtro de filas por Mes/Semana (ACT15 punto 1) — sustituye al
-  // filtro de igualdad {colIdx,valor} que usaba ACT14 (incompatible con
-  // selección múltiple): devuelve un SUBARREGLO de `rowsBase` con las
-  // filas cuyo Mes esté en los meses elegidos (si hay alguno elegido) Y
-  // cuya Semana esté en las semanas elegidas (si hay alguna elegida) —
-  // "Todos"/"Todas" (conjunto vacío) no filtra esa columna. `idxUsado` es
-  // el mapa de índices de columna del bundle que corresponda (idxCol para
-  // el bundle principal, idxColT para el temporal) — ambos traen Mes y
-  // Semana desde ACT14. Nunca toca la Población (que no pasa por aquí). */
-  function _filtrarPorMesSemana(rowsBase, idxUsado) {
-    const meses = _mesesSeleccionados();
-    const semanas = _semanasSeleccionadas();
+  function _filtrarPorMesSemanaP(rowsBase) {
+    const meses = _mesesSeleccionadosP();
+    const semanas = _semanasSeleccionadasP();
     if (!meses.length && !semanas.length) return rowsBase;
     const mesesSet = meses.length ? new Set(meses) : null;
     const semanasSet = semanas.length ? new Set(semanas) : null;
     return rowsBase.filter((r) => {
-      if (mesesSet && !mesesSet.has(String(r[idxUsado.mes]))) return false;
-      if (semanasSet && !semanasSet.has(String(r[idxUsado.semana]))) return false;
+      if (mesesSet && !mesesSet.has(String(r[idxP.mes]))) return false;
+      if (semanasSet && !semanasSet.has(String(r[idxP.semana]))) return false;
       return true;
     });
-  }
-
-  // ---- Texto de periodo (ACT15 punto 2): sufijo legible con el Mes/
-  // Semana elegido, para anteponerlo al periodo de años ya existente
-  // ("Comparativo 2025 vs 2026 | Mayo", "... | Enero–Marzo",
-  // "... | Semanas epidemiológicas 01–04"). Rango contiguo ("Ene–Mar")
-  // cuando los valores elegidos son consecutivos; lista con comas si no
-  // lo son; un solo valor no lleva guion. Vacío ("") si no hay Mes ni
-  // Semana elegidos — el periodo se ve exactamente igual que antes de
-  // ACT15 en ese caso. ----
-  function _nombreMesLargo(mesCat) {
-    const m = /^\d{2}\s+(.+)$/.exec(mesCat || "");
-    return m ? m[1] : (mesCat || "");
   }
   function _esRangoContiguo(valoresOrdenados, numFn) {
     for (let i = 1; i < valoresOrdenados.length; i++) {
@@ -549,15 +974,9 @@ function SNSP_renderMorbilidadModulePage(opts) {
     }
     return true;
   }
-  // ACT16 punto 1: si TODAS las opciones actualmente disponibles (ya
-  // filtradas por compatibilidad con el otro multiselect) quedaron
-  // marcadas, equivale — para este texto — a no tener ninguna marcada
-  // ("Todos"/"Todas" en los chips, ver _renderMultiselectChips); evita que
-  // el periodo se llene con "Ene–Dic" cuando en realidad no hay ninguna
-  // restricción real.
-  function _textoMesSemanaPeriodo() {
-    const mesesSelRaw = _mesesSeleccionados();
-    const semanasSelRaw = _semanasSeleccionadas();
+  function _textoMesSemanaPeriodoP() {
+    const mesesSelRaw = _mesesSeleccionadosP();
+    const semanasSelRaw = _semanasSeleccionadasP();
     const mesesDisponibles = _mesesCompatiblesConSemanas(semanasSelRaw);
     const semanasDisponibles = _semanasCompatiblesConMeses(mesesSelRaw);
     const meses = (mesesSelRaw.length && mesesSelRaw.length === mesesDisponibles.length) ? [] : mesesSelRaw.slice().sort();
@@ -579,343 +998,65 @@ function SNSP_renderMorbilidadModulePage(opts) {
     }
     return partes.join(" · ");
   }
-  // Texto de periodo COMPLETO (años + Mes/Semana si aplica) — reemplaza,
-  // en todos los lugares que antes escribían
-  // `modoComparativo ? _textoComparativo(anios) : periodoTexto(anios)`
-  // a mano, a esa misma expresión con el sufijo de Mes/Semana ya anexado.
-  // Un solo punto de verdad: cambiar el formato del sufijo (arriba) se
-  // refleja en gráficas, tablas, Panorama, vista previa y PDF a la vez.
-  function _periodoCompletoTexto(aniosSeleccionados, modoComparativo) {
+  function _periodoCompletoTextoP(aniosSeleccionados, modoComparativo) {
     const base = modoComparativo ? _textoComparativo(aniosSeleccionados) : periodoTexto(aniosSeleccionados);
-    const sufijo = _textoMesSemanaPeriodo();
-    return sufijo ? `${base} | ${sufijo}` : base;
+    const sufijo = _textoMesSemanaPeriodoP();
+    return (sufijo ? `${base} | ${sufijo}` : base) + _notaAnioParcial(aniosSeleccionados);
   }
-  // Misma idea que arriba, pero para el texto MINÚSCULO ("comparativo
-  // 2025 vs 2026") que se inserta en medio de una oración dentro del
-  // título automático de cada gráfica (SNSP_tituloGrafica, en
-  // components/charts.js) — no se toca ese archivo compartido; sólo se
-  // construye aquí el mismo texto de siempre (en minúsculas, "comparativo
-  // ..." no "Comparativo ...") con el sufijo de Mes/Semana anexado.
-  function _periodoTituloTexto(aniosSeleccionados, modoComparativo) {
+  function _periodoTituloTextoP(aniosSeleccionados, modoComparativo) {
     const base = modoComparativo ? `comparativo ${aniosSeleccionados.join(" vs ")}` : periodoTexto(aniosSeleccionados);
-    const sufijo = _textoMesSemanaPeriodo();
+    const sufijo = _textoMesSemanaPeriodoP();
     return sufijo ? `${base} | ${sufijo}` : base;
   }
-  // Anexa el sufijo de Mes/Semana (si hay) a un texto descriptivo que no
-  // es en sí mismo un periodo (p. ej. "Distribución dentro de la
-  // selección vigente") — para que ese texto también deje ver el
-  // Mes/Semana elegido sin reescribir la frase entera.
-  function _conSufijoPeriodo(texto) {
-    const sufijo = _textoMesSemanaPeriodo();
+  function _conSufijoPeriodoP(texto) {
+    const sufijo = _textoMesSemanaPeriodoP();
     return sufijo ? `${texto} — ${sufijo}` : texto;
   }
-  // Meses a mostrar en las gráficas temporales (Tendencia por año/mes,
-  // Comparativo por mes y año) — ACT15 punto 2: "no mostrar periodos
-  // excluidos como Sin información". Con Mes(es) elegidos, sólo esos
-  // meses (en el orden del catálogo); si sólo hay Semana(s) elegidas (sin
-  // Mes), sólo los meses compatibles con esa unión de semanas; sin
-  // ninguno de los dos, los 12 meses de siempre.
-  function _temporalMesesEnAlcance() {
-    const mesesSel = _mesesSeleccionados();
-    if (mesesSel.length) return mesesCatalogo.filter((m) => mesesSel.includes(m));
-    const semanasSel = _semanasSeleccionadas();
+  function _temporalMesesEnAlcanceP() {
+    const mesesSel = _mesesSeleccionadosP();
+    const catalogo = (catP.meses || []).slice();
+    if (mesesSel.length) return catalogo.filter((m) => mesesSel.includes(m));
+    const semanasSel = _semanasSeleccionadasP();
     if (semanasSel.length) {
       const compatibles = _mesesCompatiblesConSemanas(semanasSel);
-      return mesesCatalogo.filter((m) => compatibles.includes(m));
+      return catalogo.filter((m) => compatibles.includes(m));
     }
-    return mesesCatalogo;
+    return catalogo;
   }
 
-  // ---- Filtros: Municipio / Jurisdicción / Institución (Institución NUNCA
-  // es "Por", sólo filtro, a petición explícita) — reutiliza el componente
-  // ya validado SNSP_renderFilterBar, con "Aplicar filtros"/"Limpiar". ----
-  const filterDefs = {
-    municipio_morbilidad: { label: "Municipio", options: () => catalogos.municipios },
-    jurisdiccion_morbilidad: { label: "Jurisdicción sanitaria", options: () => catalogos.jurisdicciones },
-    institucion_morbilidad: { label: "Institución", options: () => catalogos.instituciones },
-  };
-  Object.assign(SNSP_FILTER_DEFS, filterDefs);
-  SNSP_renderFilterBar("filter-bar", Object.keys(filterDefs), (filters) => {
-    currentFilters = filters;
-    renderTablero();
-    window.SNSP_AUTH.logAction("aplicar_filtros", `Módulo: Morbilidad — ${JSON.stringify(currentFilters)} — selección: ${seleccionPadecimiento ? seleccionPadecimiento.padecimiento : "(ninguna)"}`);
-  });
+  const selDimP = document.getElementById("morb-p-select-dim");
+  if (selDimP) selDimP.addEventListener("change", renderTableroP);
+  const selPadecimientosTopN = document.getElementById("morb-p-padecimientos-topn");
+  if (selPadecimientosTopN) selPadecimientosTopN.addEventListener("change", renderTableroP);
+  const selPrincipalTopNP = document.getElementById("morb-p-principal-topn");
+  if (selPrincipalTopNP) selPrincipalTopNP.addEventListener("change", renderTableroP);
 
-  // ---- Analizar / Por ----
-  const selMedida = document.getElementById("morb-select-medida");
-  const selDim = document.getElementById("morb-select-dim");
-  if (!poblacionDisponible) {
-    Array.from(selMedida.options).forEach((opt) => { if (opt.value !== "casos") opt.disabled = true; });
-    selMedida.value = "casos";
-  }
-  selMedida.addEventListener("change", renderTablero);
-  selDim.addEventListener("change", renderTablero);
-
-  // ---- ACT09: selector Top N del panel "Padecimiento(s) dentro de la
-  // selección" (10/15/20/Todos, predeterminado Top 10) — sólo cambia
-  // cuántas barras se dibujan en ESE panel, nunca ningún cálculo ni KPI.
-  const selPadecimientosTopN = document.getElementById("morb-padecimientos-topn");
-  if (selPadecimientosTopN) selPadecimientosTopN.addEventListener("change", renderTablero);
-
-  // ---- ACT09 (ajuste de seguimiento): el mismo selector Top N, ahora
-  // también en la gráfica dinámica principal ("Gráfica"/"Tabla resumen"),
-  // porque con Por=Padecimiento puede llegar a 157 categorías y crecía
-  // igual de desproporcionado que el panel del Panorama. Sólo recorta el
-  // DIBUJO cuando Por=Padecimiento (Municipio/Jurisdicción/Grupo de edad
-  // siguen mostrando siempre todas sus categorías reales, igual que en el
-  // resto de Morbilidad): se deshabilita visualmente cuando no aplica.
-  const selPrincipalTopN = document.getElementById("morb-principal-topn");
-  if (selPrincipalTopN) selPrincipalTopN.addEventListener("change", renderTablero);
-
-  function nombreMedida() {
-    if (selMedida.value === "poblacion") return "Población";
-    if (selMedida.value === "tasa") return "Tasa (por 100,000 hab.)";
-    return "Casos";
-  }
-
-  function _filtrosActivos() {
+  function _filtrosActivosP() {
     const list = [];
-    if (currentFilters.municipio_morbilidad) list.push({ colIdx: idxCol.municipio, valor: currentFilters.municipio_morbilidad });
-    if (currentFilters.jurisdiccion_morbilidad) list.push({ colIdx: idxCol.jurisdiccion, valor: currentFilters.jurisdiccion_morbilidad });
-    if (currentFilters.institucion_morbilidad) list.push({ colIdx: idxCol.institucion, valor: currentFilters.institucion_morbilidad });
-    // ACT15: Mes y Semana epidemiológica YA NO se agregan aquí (selección
-    // múltiple, incompatible con el filtro de igualdad {colIdx,valor} de
-    // svcCarga) — se aplican antes, pre-filtrando las filas (ver
-    // _filtrarPorMesSemana / rowsCasosFiltradas).
-    // Se filtra por Epi-Clave (no por el texto de Padecimiento): el
-    // catálogo de búsqueda guarda el nombre YA SEPARADO del código CIE-10
-    // (ver _extraer_cie10 en build_morbilidad_casos.py), mientras que las
-    // filas de datos.rows traen el texto completo "Nombre(CIE10)" tal cual
-    // la base. Epi-Clave es 1 a 1 con Padecimiento en esta base (verificado
-    // antes de generar el bundle) y sí coincide exactamente con la columna
-    // Epi-Clave de cada fila.
-    if (seleccionPadecimiento) list.push({ colIdx: idxCol.epiclave, valor: seleccionPadecimiento.epiclave });
+    if (seleccionPadecimiento) list.push({ colIdx: idxP.epiclave, valor: seleccionPadecimiento.epiclave });
     return list;
   }
 
-  function lugarTexto() {
-    const f = currentFilters;
-    if (f.municipio_morbilidad) return `el municipio de ${f.municipio_morbilidad}`;
-    if (f.jurisdiccion_morbilidad) return `la Jurisdicción Sanitaria de ${f.jurisdiccion_morbilidad}`;
-    if (f.institucion_morbilidad) return `la institución ${f.institucion_morbilidad}`;
-    return "el estado de Querétaro";
-  }
-
-  function periodoTexto(aniosSeleccionados) {
-    if (aniosSeleccionados.length === 1) return `${aniosSeleccionados[0]}`;
-    const anios = (catalogos.anios || []).slice().sort();
-    return anios.length > 1 ? `el periodo ${anios[0]}–${anios[anios.length - 1]}` : (anios[0] ? `${anios[0]}` : "el periodo disponible");
-  }
-
-  function _lineasEtiquetaMorb(categoria, wrapAt) {
-    wrapAt = wrapAt || 26;
-    if (typeof categoria !== "string" || categoria.length <= wrapAt) return 1;
-    if (typeof SNSP_wrapLabel === "function") {
-      const lineas = SNSP_wrapLabel(categoria, wrapAt);
-      return Array.isArray(lineas) ? lineas.length : 1;
-    }
-    return Math.ceil(categoria.length / wrapAt);
-  }
-
-  // Totales globales (para la tarjeta KPI del valor analizado), usando
-  // SIEMPRE Municipio como dimensión fija para obtener una partición
-  // completa de las filas filtradas (todo renglón tiene Municipio) y
-  // sumando sin duplicar población — reutiliza agregarConPoblacion tal
-  // cual, no se inventa un cálculo alterno.
-  function _calcularTotales(filtrosParaAgregar) {
-    const resultados = svcCarga.agregarConPoblacion(rowsCasosFiltradas, idxCol.municipio, idxCol.casos, filtrosParaAgregar, joinCols, poblacionIndex.mapa);
-    let totalCasos = 0, totalPoblacion = 0, hayPoblacion = false;
-    resultados.forEach((r) => {
-      totalCasos += r.valorCasos;
-      if (r.poblacion !== null && r.poblacion !== undefined) { totalPoblacion += r.poblacion; hayPoblacion = true; }
-    });
-    const tasaGlobal = (hayPoblacion && totalPoblacion > 0) ? (totalCasos / totalPoblacion) * 100000 : null;
-    return { totalCasos, totalPoblacion: hayPoblacion ? totalPoblacion : null, tasaGlobal };
-  }
-
-  // -----------------------------------------------------------------
-  // "Panorama de Casos" — 8 paneles fijos, recuperados de la versión
-  // anterior de Morbilidad. Todos son de Casos únicamente (nunca
-  // Población/Tasa, ver nota de cabecera) y respetan los mismos
-  // filtros/buscador/Año que la gráfica dinámica: se recalculan al
-  // final de cada renderTablero(), recibiendo los mismos filtrosActivos
-  // / aniosSeleccionados / modoComparativo ya calculados ahí (no se
-  // vuelve a leer el DOM ni se inventa un cálculo alterno).
-  // -----------------------------------------------------------------
-  const panoramaCharts = {}; // canvasId -> instancia Chart, para destruir antes de re-dibujar
-
-  function _destruirPanorama(canvasId) {
-    if (panoramaCharts[canvasId]) { panoramaCharts[canvasId].destroy(); panoramaCharts[canvasId] = null; }
-  }
-
-  // -----------------------------------------------------------------
-  // ACT09 — ajustes visuales: grosor y separación UNIFORMES de barra en
-  // TODAS las gráficas de Morbilidad (la dinámica de Analizar/Por y los
-  // 8 paneles del Panorama de Casos), y alto de cada gráfica calculado a
-  // partir de esos mismos valores (para que no sobre espacio vacío ni se
-  // amontonen las barras). Esto es puramente visual — controla cómo
-  // Chart.js dibuja cada barra, nunca qué se calcula ni qué se filtra.
-  // MORB_BAR_THICKNESS es el grosor (px) de cada barra, igual en modo
-  // clásico (1 barra por categoría) y comparativo (2025/2026). En
-  // comparativo, MORB_BAR_PCT_COMPARATIVO deja las barras de 2025/2026
-  // pegadas entre sí dentro de su categoría, y MORB_CAT_PCT_COMPARATIVO
-  // (más bajo) deja separación clara respecto a la categoría siguiente.
-  // -----------------------------------------------------------------
-  const MORB_BAR_THICKNESS = 22;
-  const MORB_BAR_PCT_CLASICO = 0.85;
-  const MORB_CAT_PCT_CLASICO = 0.85;
-  const MORB_BAR_PCT_COMPARATIVO = 0.92;
-  const MORB_CAT_PCT_COMPARATIVO = 0.65;
-
-  function _morbBarraOpts(comparativo) {
-    return comparativo
-      ? { maxBarThickness: MORB_BAR_THICKNESS, barPercentage: MORB_BAR_PCT_COMPARATIVO, categoryPercentage: MORB_CAT_PCT_COMPARATIVO }
-      : { maxBarThickness: MORB_BAR_THICKNESS, barPercentage: MORB_BAR_PCT_CLASICO, categoryPercentage: MORB_CAT_PCT_CLASICO };
-  }
-
-  // Alto (px) que necesita UNA categoría para mostrar sus barras
-  // (1 en modo clásico, 2 en comparativo 2025 vs 2026) con el grosor y
-  // separación uniformes de arriba — mismo criterio que usa Chart.js
-  // internamente para repartir maxBarThickness/barPercentage/
-  // categoryPercentage, así el alto reservado coincide con lo que
-  // realmente se dibuja.
-  function _alturaCategoriaBarras(comparativo, nSeries) {
-    const barPct = comparativo ? MORB_BAR_PCT_COMPARATIVO : MORB_BAR_PCT_CLASICO;
-    const catPct = comparativo ? MORB_CAT_PCT_COMPARATIVO : MORB_CAT_PCT_CLASICO;
-    const series = comparativo ? Math.max(nSeries || 2, 2) : 1;
-    const gapEntreBarras = MORB_BAR_THICKNESS * (1 / barPct - 1);
-    const altoBarras = series * MORB_BAR_THICKNESS + Math.max(0, series - 1) * gapEntreBarras;
-    return altoBarras / catPct;
-  }
-
-  // Ajusta la altura del contenedor de una gráfica de barras horizontal
-  // según el número de categorías y si va en modo comparativo (grupos de
-  // barras por año) — usada tanto por la gráfica dinámica como por los
-  // paneles del Panorama de Casos, para que todas midan su alto igual.
-  function _ajustarAlturaBarra(wrapId, categorias, comparativo, nSeries) {
-    const wrap = document.getElementById(wrapId);
-    if (!wrap) return;
-    const alturaPorSeries = _alturaCategoriaBarras(comparativo, nSeries);
-    // Etiquetas largas envueltas a varias líneas necesitan más alto por
-    // categoría para no encimarse con la vecina (misma lógica ya
-    // validada, ahora combinada con el alto de barra fijo de arriba).
-    const maxLineas = categorias.reduce((m, c) => Math.max(m, _lineasEtiquetaMorb(c, 26)), 1);
-    const alturaPorEtiqueta = maxLineas * 16;
-    const alturaPorCategoria = Math.max(alturaPorSeries, alturaPorEtiqueta);
-    wrap.style.height = Math.max(260, categorias.length * alturaPorCategoria + 90) + "px";
-  }
-
-  function _filtrosActivosTemporal() {
-    if (!idxColT) return [];
-    const list = [];
-    if (currentFilters.municipio_morbilidad) list.push({ colIdx: idxColT.municipio, valor: currentFilters.municipio_morbilidad });
-    if (currentFilters.jurisdiccion_morbilidad) list.push({ colIdx: idxColT.jurisdiccion, valor: currentFilters.jurisdiccion_morbilidad });
-    if (currentFilters.institucion_morbilidad) list.push({ colIdx: idxColT.institucion, valor: currentFilters.institucion_morbilidad });
-    // ACT15: Mes y Semana del bundle temporal, mismo criterio que
-    // _filtrosActivos() — se pre-filtran (rowsTFiltradas), no van aquí.
-    if (seleccionPadecimiento) list.push({ colIdx: idxColT.epiclave, valor: seleccionPadecimiento.epiclave });
-    return list;
-  }
-
-  // ---- Casos por municipio: SIEMPRE los 18 municipios, 0-rellenados
-  // (nunca se ocultan los que no tienen casos en la selección vigente) ----
-  // ACT16 (punto 5): cuenta cuántas de las categorías YA DIBUJADAS en una
-  // instancia de Chart.js tienen algún valor > 0 en al menos una serie —
-  // se lee directo de la gráfica ya renderizada (mismo criterio que
-  // _tablaDesdeChartInstance: nunca un cálculo aparte), para que el aviso
-  // "N de M con casos" sea EXACTAMENTE consistente con lo dibujado, tanto
-  // en pantalla como en la Vista previa/PDF. Una categoría con 0 en TODOS
-  // los periodos mostrados no cuenta como "con datos", aunque su barra en
-  // 0 se conserve en la gráfica/tabla para poder comparar años.
-  function _contarCategoriasConDatos(chartInst) {
-    if (!chartInst || !chartInst.data) return null;
-    const labels = chartInst.data.labels || [];
-    const datasets = chartInst.data.datasets || [];
-    let conDatos = 0;
-    labels.forEach((_, i) => {
-      const algunoConValor = datasets.some((ds) => {
-        const v = (ds.data || [])[i];
-        return typeof v === "number" && v > 0;
-      });
-      if (algunoConValor) conDatos++;
-    });
-    return { conDatos, total: labels.length };
-  }
-
-  function renderChartMunicipio(filtrosActivos, aniosSeleccionados, modoComparativo) {
-    _destruirPanorama("morb-chart-municipio");
-    const municipiosTodos = (catalogos.municipios || []).slice();
-    const tituloPartes = { indicador: "Casos", dimension: "municipio", padecimiento: _padecimientoTitulo(), lugar: lugarTexto(), periodo: _periodoTituloTexto(aniosSeleccionados, modoComparativo) };
-    let categorias;
-    if (modoComparativo) {
-      const resultados = svcCarga.agregarComparativo(rowsCasosFiltradas, idxCol.municipio, idxCol.casos, filtrosActivos, idxCol.anio, aniosSeleccionados);
-      const mapa = {};
-      resultados.forEach((r) => { mapa[r.categoria] = r.valores; });
-      categorias = municipiosTodos.slice().sort((a, b) => {
-        const ta = aniosSeleccionados.reduce((s, y) => s + ((mapa[a] && mapa[a][y]) || 0), 0);
-        const tb = aniosSeleccionados.reduce((s, y) => s + ((mapa[b] && mapa[b][y]) || 0), 0);
-        return tb - ta;
-      });
-      const seriesPorAnio = aniosSeleccionados.map((y) => ({ label: y, data: categorias.map((c) => (mapa[c] && mapa[c][y]) || 0) }));
-      _ajustarAlturaBarra("morb-wrap-municipio", categorias, modoComparativo, aniosSeleccionados.length);
-      panoramaCharts["morb-chart-municipio"] = SNSP_renderGroupedBarChart("morb-chart-municipio", categorias, seriesPorAnio, "Casos", Object.assign({ horizontal: true, wrapAt: 26, tituloPartes }, _morbBarraOpts(modoComparativo)));
-    } else {
-      const filtrosConAnio = aniosSeleccionados.length === 1 ? filtrosActivos.concat([{ colIdx: idxCol.anio, valor: aniosSeleccionados[0] }]) : filtrosActivos;
-      const resultados = svcCarga.agregar(rowsCasosFiltradas, idxCol.municipio, idxCol.casos, filtrosConAnio);
-      const mapa = {};
-      resultados.forEach((r) => { mapa[r.categoria] = r.valor; });
-      categorias = municipiosTodos.slice().sort((a, b) => (mapa[b] || 0) - (mapa[a] || 0));
-      _ajustarAlturaBarra("morb-wrap-municipio", categorias, modoComparativo, aniosSeleccionados.length);
-      panoramaCharts["morb-chart-municipio"] = SNSP_renderBarChart("morb-chart-municipio", categorias, categorias.map((c) => mapa[c] || 0), "Casos", Object.assign({ horizontal: true, wrapAt: 26, tituloPartes }, _morbBarraOpts(modoComparativo)));
-    }
-
-    // ACT16 (punto 5): el KPI "Categorías encontradas" (cuando Por=Municipio)
-    // sólo cuenta municipios con al menos un caso — este panel, en cambio,
-    // SIEMPRE muestra los 18 (0-rellenados) para poder comparar años, como
-    // ya se documentaba en el subtítulo estático. Ahora el subtítulo es
-    // dinámico y deja explícito cuántos de los 18 sí tienen casos en el
-    // periodo vigente, para que ambos números (13 y 18, por ejemplo) se
-    // entiendan como cosas distintas y no como una inconsistencia.
-    const subtMunicipio = document.getElementById("morb-subt-municipio");
-    if (subtMunicipio) {
-      const conteo = _contarCategoriasConDatos(panoramaCharts["morb-chart-municipio"]);
-      subtMunicipio.textContent = (conteo && conteo.conDatos < conteo.total)
-        ? `${conteo.conDatos} de ${conteo.total} municipios con casos en el periodo — se muestran los ${conteo.total} para poder comparar años (0 = sin casos registrados)`
-        : `Los 18 municipios, incluidos los que no registran casos en la selección`;
-    }
-  }
-
-  function _padecimientoTitulo() {
-    return seleccionPadecimiento ? `${seleccionPadecimiento.cie10_texto ? seleccionPadecimiento.cie10_texto + " — " : ""}${seleccionPadecimiento.padecimiento}` : null;
-  }
-
-  // ---- Genérico: agrega por una dimensión del bundle PRINCIPAL (Casos
-  // únicamente) y dibuja barra horizontal simple o agrupada por año.
-  // opts.limitTop (opcional, ACT09): recorta a las N categorías de mayor
-  // valor SÓLO para el dibujo — el total de categorías (antes de
-  // recortar) se calcula con la MISMA llamada a agregar/agregarComparativo
-  // (nunca un cálculo aparte) y se devuelve en el resultado, para que el
-  // panel pueda avisar "Top N de M" sin tocar ningún KPI ni total. ----
-  function _renderPanelPrincipal(canvasId, wrapId, dimIdx, nombreDim, filtrosActivos, aniosSeleccionados, modoComparativo, opts) {
+  function _renderPanelP(canvasId, wrapId, dimIdx, nombreDim, filtrosActivos, aniosSeleccionados, modoComparativo, opts) {
     opts = opts || {};
     _destruirPanorama(canvasId);
     let categorias, valores, seriesPorAnio, totalCategorias;
     if (modoComparativo) {
-      let resultados = svcCarga.agregarComparativo(rowsCasosFiltradas, dimIdx, idxCol.casos, filtrosActivos, idxCol.anio, aniosSeleccionados);
+      let resultados = svcCarga.agregarComparativo(rowsPFiltradas, dimIdx, idxP.casos, filtrosActivos, idxP.anio, aniosSeleccionados);
       totalCategorias = resultados.length;
       if (opts.limitTop) resultados = resultados.slice(0, opts.limitTop);
       categorias = resultados.map((r) => r.categoria);
       seriesPorAnio = aniosSeleccionados.map((y) => ({ label: y, data: resultados.map((r) => r.valores[y] || 0) }));
     } else {
-      const filtrosConAnio = aniosSeleccionados.length === 1 ? filtrosActivos.concat([{ colIdx: idxCol.anio, valor: aniosSeleccionados[0] }]) : filtrosActivos;
-      let resultados = svcCarga.agregar(rowsCasosFiltradas, dimIdx, idxCol.casos, filtrosConAnio);
+      const filtrosConAnio = aniosSeleccionados.length === 1 ? filtrosActivos.concat([{ colIdx: idxP.anio, valor: aniosSeleccionados[0] }]) : filtrosActivos;
+      let resultados = svcCarga.agregar(rowsPFiltradas, dimIdx, idxP.casos, filtrosConAnio);
       totalCategorias = resultados.length;
       if (opts.limitTop) resultados = resultados.slice(0, opts.limitTop);
       categorias = resultados.map((r) => r.categoria);
       valores = resultados.map((r) => r.valor);
     }
     _ajustarAlturaBarra(wrapId, categorias, modoComparativo, aniosSeleccionados.length);
-    const tituloPartes = { indicador: "Casos", dimension: nombreDim, padecimiento: _padecimientoTitulo(), lugar: lugarTexto(), periodo: _periodoTituloTexto(aniosSeleccionados, modoComparativo) };
+    const tituloPartes = { indicador: "Casos", dimension: nombreDim, padecimiento: _padecimientoTitulo(), lugar: "el estado de Querétaro", periodo: _periodoTituloTextoP(aniosSeleccionados, modoComparativo) };
     const barraOpts = Object.assign({ horizontal: true, wrapAt: 26, tituloPartes }, _morbBarraOpts(modoComparativo));
     if (modoComparativo) {
       panoramaCharts[canvasId] = SNSP_renderGroupedBarChart(canvasId, categorias, seriesPorAnio, "Casos", barraOpts);
@@ -925,69 +1066,13 @@ function SNSP_renderMorbilidadModulePage(opts) {
     return { mostradas: categorias.length, total: totalCategorias };
   }
 
-  // ---- Casos por jurisdicción sanitaria: dona en modo simple (año único
-  // o sin año), barra agrupada horizontal cuando hay comparativo (una
-  // dona no puede representar 2 años a la vez con claridad) ----
-  function renderChartJurisdiccion(filtrosActivos, aniosSeleccionados, modoComparativo) {
-    _destruirPanorama("morb-chart-jurisdiccion");
-    const subt = document.getElementById("morb-subt-jurisdiccion");
-    if (modoComparativo) {
-      if (subt) subt.textContent = _periodoCompletoTexto(aniosSeleccionados, true);
-      _renderPanelPrincipal("morb-chart-jurisdiccion", "morb-wrap-jurisdiccion", idxCol.jurisdiccion, "jurisdicción sanitaria", filtrosActivos, aniosSeleccionados, true);
-    } else {
-      if (subt) subt.textContent = _conSufijoPeriodo("Distribución porcentual dentro de la selección vigente");
-      const filtrosConAnio = aniosSeleccionados.length === 1 ? filtrosActivos.concat([{ colIdx: idxCol.anio, valor: aniosSeleccionados[0] }]) : filtrosActivos;
-      const resultados = svcCarga.agregar(rowsCasosFiltradas, idxCol.jurisdiccion, idxCol.casos, filtrosConAnio);
-      document.getElementById("morb-wrap-jurisdiccion").style.height = "380px";
-      const tituloPartes = { indicador: "Casos", dimension: "jurisdicción sanitaria", padecimiento: _padecimientoTitulo(), lugar: lugarTexto(), periodo: _periodoTituloTexto(aniosSeleccionados, false) };
-      panoramaCharts["morb-chart-jurisdiccion"] = SNSP_renderDoughnut("morb-chart-jurisdiccion", resultados.map((r) => r.categoria), resultados.map((r) => r.valor), { tituloPartes });
-    }
-  }
-
-  // ---- Casos por institución: SIEMPRE Casos, nunca Tasa (la población
-  // de esta base no está desagregada por institución) — ignora a
-  // propósito el selector global Analizar. ----
-  function renderChartInstitucion(filtrosActivos, aniosSeleccionados, modoComparativo) {
-    _renderPanelPrincipal("morb-chart-institucion", "morb-wrap-institucion", idxCol.institucion, "institución", filtrosActivos, aniosSeleccionados, modoComparativo);
-  }
-
-  // ---- Casos por grupo de edad ----
-  function renderChartGrupoEdad(filtrosActivos, aniosSeleccionados, modoComparativo) {
-    _renderPanelPrincipal("morb-chart-grupoedad", "morb-wrap-grupoedad", idxCol.grupo_edad, "grupo de edad", filtrosActivos, aniosSeleccionados, modoComparativo);
-  }
-
-  // ---- Padecimiento(s) dentro de la selección: principales
-  // padecimientos dentro de los filtros/búsqueda vigentes. Es la gráfica
-  // que más puede crecer (hasta 157 padecimientos sin selección), así
-  // que ACT09 le agregó el selector Top 10/15/20/Todos (predeterminado
-  // Top 10, ver #morb-padecimientos-topn en pages/morbilidad.html); si
-  // hay una búsqueda activa normalmente se reduce a 1 sola categoría de
-  // todos modos, sin importar el Top N elegido. El recorte es SÓLO de
-  // dibujo: el total real de padecimientos en la selección (antes de
-  // recortar) se sigue calculando con la misma agregación, nunca cambia
-  // ningún KPI ni total. ----
-  function _topNPadecimientos() {
-    const sel = document.getElementById("morb-padecimientos-topn");
-    if (!sel) return 10; // sin selector en el DOM: Top 10 por defecto, mismo valor que trae el <select>
-    if (sel.value === "todos") return null; // null = sin recorte, mostrar todas las categorías
-    const n = parseInt(sel.value, 10);
-    return isNaN(n) ? 10 : n;
-  }
-
-  // ---- ACT09 (ajuste de seguimiento): mismo patrón que _topNPadecimientos,
-  // para el selector "Mostrar" de la gráfica dinámica principal. ----
-  function _topNPrincipal() {
-    const sel = document.getElementById("morb-principal-topn");
-    if (!sel) return 10;
-    if (sel.value === "todos") return null;
-    const n = parseInt(sel.value, 10);
-    return isNaN(n) ? 10 : n;
-  }
+  function _topNPadecimientos() { return _leerTopN(selPadecimientosTopN); }
+  function _topNPrincipalP() { return _leerTopN(selPrincipalTopNP); }
 
   function renderChartPadecimientos(filtrosActivos, aniosSeleccionados, modoComparativo) {
     const limitTop = _topNPadecimientos();
-    const resultado = _renderPanelPrincipal("morb-chart-padecimientos", "morb-wrap-padecimientos", idxCol.padecimiento, "padecimiento", filtrosActivos, aniosSeleccionados, modoComparativo, { limitTop });
-    const subt = document.getElementById("morb-subt-padecimientos");
+    const resultado = _renderPanelP("morb-p-chart-padecimientos", "morb-p-wrap-padecimientos", idxP.padecimiento, "padecimiento", filtrosActivos, aniosSeleccionados, modoComparativo, { limitTop });
+    const subt = document.getElementById("morb-p-subt-padecimientos");
     if (subt) {
       subt.textContent = (limitTop && resultado.total > limitTop)
         ? `Top ${limitTop} de ${resultado.total} padecimientos en la selección vigente`
@@ -995,275 +1080,151 @@ function SNSP_renderMorbilidadModulePage(opts) {
     }
     return resultado;
   }
-
-  // ---- Casos por sexo (bundle temporal) ----
-  function renderChartSexo(filtrosActivosT, aniosSeleccionados, modoComparativo) {
-    _destruirPanorama("morb-chart-sexo");
-    const subt = document.getElementById("morb-subt-sexo");
-    if (!datosTemporal) {
-      if (subt) subt.textContent = "Dato pendiente de carga";
-      document.getElementById("morb-wrap-sexo").innerHTML = '<p class="text-muted" style="padding:var(--sp-4);">No se encontró el bundle temporal (morbilidad_temporal_2025_2026.js).</p>';
-      return;
-    }
-    if (subt) subt.textContent = modoComparativo ? _periodoCompletoTexto(aniosSeleccionados, true) : _conSufijoPeriodo("Distribución dentro de la selección vigente");
-    const tituloPartes = { indicador: "Casos", dimension: "sexo", padecimiento: _padecimientoTitulo(), lugar: lugarTexto(), periodo: _periodoTituloTexto(aniosSeleccionados, modoComparativo) };
-    if (modoComparativo) {
-      const resultados = svcCarga.agregarComparativo(rowsTFiltradas, idxColT.sexo, idxColT.casos, filtrosActivosT, idxColT.anio, aniosSeleccionados);
-      const categorias = resultados.map((r) => r.categoria);
-      const series = aniosSeleccionados.map((y) => ({ label: y, data: resultados.map((r) => r.valores[y] || 0) }));
-      _ajustarAlturaBarra("morb-wrap-sexo", categorias, modoComparativo, aniosSeleccionados.length);
-      panoramaCharts["morb-chart-sexo"] = SNSP_renderGroupedBarChart("morb-chart-sexo", categorias, series, "Casos", Object.assign({ horizontal: true, wrapAt: 26, tituloPartes }, _morbBarraOpts(modoComparativo)));
-    } else {
-      const filtrosConAnio = aniosSeleccionados.length === 1 ? filtrosActivosT.concat([{ colIdx: idxColT.anio, valor: aniosSeleccionados[0] }]) : filtrosActivosT;
-      const resultados = svcCarga.agregar(rowsTFiltradas, idxColT.sexo, idxColT.casos, filtrosConAnio);
-      _ajustarAlturaBarra("morb-wrap-sexo", resultados.map((r) => r.categoria), modoComparativo, aniosSeleccionados.length);
-      panoramaCharts["morb-chart-sexo"] = SNSP_renderBarChart("morb-chart-sexo", resultados.map((r) => r.categoria), resultados.map((r) => r.valor), "Casos", Object.assign({ horizontal: true, wrapAt: 26, tituloPartes }, _morbBarraOpts(modoComparativo)));
-    }
+  function renderChartGrupoEdadP(filtrosActivos, aniosSeleccionados, modoComparativo) {
+    _renderPanelP("morb-p-chart-grupoedad", "morb-p-wrap-grupoedad", idxP.grupo_edad, "grupo de edad", filtrosActivos, aniosSeleccionados, modoComparativo);
   }
-
-  // ---- Tendencia por año/mes (ajuste de seguimiento a ACT09): con 2+ años
-  // en alcance ya NO se encadenan en una sola línea continua de 24 meses —
-  // se dibuja UNA serie por año, las dos sobre el MISMO eje Ene-Dic, para
-  // poder comparar la tendencia mes a mes entre años. Con un solo año en
-  // alcance sigue siendo una sola serie de 12 meses (sin cambio de forma).
-  // Un mes SIN ningún registro en la selección vigente (p. ej. un mes de
-  // 2026 que todavía no se ha cargado) se deja como `null`, no como 0:
-  // Chart.js interrumpe la línea en ese punto en vez de dibujar un valor
-  // que podría confundirse con "0 casos" reales. ----
-  function renderChartTendencia(filtrosActivosT, aniosSeleccionados) {
-    _destruirPanorama("morb-chart-tendencia");
-    const subt = document.getElementById("morb-subt-tendencia");
-    if (!datosTemporal) {
-      if (subt) subt.textContent = "Dato pendiente de carga";
-      document.getElementById("morb-wrap-tendencia").innerHTML = '<p class="text-muted" style="padding:var(--sp-4);">No se encontró el bundle temporal (morbilidad_temporal_2025_2026.js).</p>';
-      return;
-    }
-    const aniosEnAlcance = aniosSeleccionados.length ? aniosSeleccionados.slice().sort() : (catalogos.anios || []).slice().sort();
+  function renderChartSexoP(filtrosActivos, aniosSeleccionados, modoComparativo) {
+    _destruirPanorama("morb-p-chart-sexo");
+    const subt = document.getElementById("morb-p-subt-sexo");
+    if (subt) subt.textContent = modoComparativo ? _periodoCompletoTextoP(aniosSeleccionados, true) : _conSufijoPeriodoP("Distribución dentro de la selección vigente");
+    _renderPanelP("morb-p-chart-sexo", "morb-p-wrap-sexo", idxP.sexo, "sexo", filtrosActivos, aniosSeleccionados, modoComparativo);
+  }
+  function renderChartTendenciaP(filtrosActivos, aniosSeleccionados) {
+    _destruirPanorama("morb-p-chart-tendencia");
+    const subt = document.getElementById("morb-p-subt-tendencia");
+    const aniosEnAlcance = aniosSeleccionados.length ? aniosSeleccionados.slice().sort() : catalogosAnio.slice().sort();
     const multiAnio = aniosEnAlcance.length > 1;
-    if (subt) subt.textContent = multiAnio ? _periodoCompletoTexto(aniosEnAlcance, true) : _conSufijoPeriodo(`Evolución mensual ${aniosEnAlcance[0] || ""}`);
-
-    // ACT15 (punto 2): sólo los meses EN ALCANCE (todos los del catálogo
-    // si no hay Mes/Semana elegidos; si los hay, sólo esos — nunca se
-    // dibujan como "Sin información" los meses que el usuario excluyó a
-    // propósito, sólo los que sí entran pero no tienen datos reales).
-    const mesesEnAlcance = _temporalMesesEnAlcance();
-
+    if (subt) subt.textContent = (multiAnio ? _periodoCompletoTextoP(aniosEnAlcance, true) : _conSufijoPeriodoP(`Evolución mensual ${aniosEnAlcance[0] || ""}`)) + (multiAnio ? "" : _notaAnioParcial(aniosEnAlcance));
+    const mesesEnAlcance = _temporalMesesEnAlcanceP();
     function serieDeAnio(anio) {
       return mesesEnAlcance.map((mes) => {
-        const filtros = filtrosActivosT.concat([{ colIdx: idxColT.anio, valor: anio }, { colIdx: idxColT.mes, valor: mes }]);
-        const resultados = svcCarga.agregar(rowsTFiltradas, idxColT.mes, idxColT.casos, filtros);
-        // Sin ningún registro para ese año+mes en la selección vigente:
-        // "sin información", no "0 casos" — se deja el hueco en la línea.
+        const filtros = filtrosActivos.concat([{ colIdx: idxP.anio, valor: anio }, { colIdx: idxP.mes, valor: mes }]);
+        const resultados = svcCarga.agregar(rowsPFiltradas, idxP.mes, idxP.casos, filtros);
         if (!resultados.length) return null;
         return resultados.reduce((s, r) => s + r.valor, 0);
       });
     }
-
     const etiquetas = mesesEnAlcance.map(_nombreMes);
     const series = aniosEnAlcance.map((anio) => ({ label: anio, data: serieDeAnio(anio) }));
-    const tituloPartes = { indicador: "Casos", dimension: "mes", padecimiento: _padecimientoTitulo(), lugar: lugarTexto(), periodo: _periodoTituloTexto(aniosEnAlcance, multiAnio) };
-    panoramaCharts["morb-chart-tendencia"] = SNSP_renderLineChart("morb-chart-tendencia", etiquetas, series, Object.assign({ tituloPartes }, MORB_OPTS_ETIQUETA_MENSUAL));
+    const tituloPartes = { indicador: "Casos", dimension: "mes", padecimiento: _padecimientoTitulo(), lugar: "el estado de Querétaro", periodo: _periodoTituloTextoP(aniosEnAlcance, multiAnio) };
+    panoramaCharts["morb-p-chart-tendencia"] = SNSP_renderLineChart("morb-p-chart-tendencia", etiquetas, series, Object.assign({ tituloPartes }, MORB_OPTS_ETIQUETA_MENSUAL));
   }
-
-  // ---- Comparativo por mes y año: 12 meses fijos (Ene-Dic). Ajuste de
-  // seguimiento a ACT09: se dibujan dos barras por mes (2025 y 2026)
-  // siempre que el alcance de años sea 2+ — esto incluye tanto cuando el
-  // usuario marca explícitamente ambos años, COMO cuando no marca ninguno
-  // (que antes sumaba ambos años en una sola barra, pudiendo leerse como
-  // el total de los dos; ahora se agrupan igual que con selección
-  // explícita, nunca se suman). Barra simple sólo cuando el alcance
-  // termina siendo un único año. Un mes SIN ningún registro (p. ej. un mes
-  // de 2026 aún no cargado) se deja como `null`, no como 0 — Chart.js no
-  // dibuja esa barra en vez de mostrar un valor que podría confundirse con
-  // "0 casos" reales. ----
-  function renderChartMesAnio(filtrosActivosT, aniosSeleccionados) {
-    _destruirPanorama("morb-chart-mesanio");
-    const subt = document.getElementById("morb-subt-mesanio");
-    if (!datosTemporal) {
-      if (subt) subt.textContent = "Dato pendiente de carga";
-      document.getElementById("morb-wrap-mesanio").innerHTML = '<p class="text-muted" style="padding:var(--sp-4);">No se encontró el bundle temporal (morbilidad_temporal_2025_2026.js).</p>';
-      return;
-    }
-    const aniosEnAlcance = aniosSeleccionados.length ? aniosSeleccionados.slice().sort() : (catalogos.anios || []).slice().sort();
+  function renderChartMesAnioP(filtrosActivos, aniosSeleccionados) {
+    _destruirPanorama("morb-p-chart-mesanio");
+    const subt = document.getElementById("morb-p-subt-mesanio");
+    const aniosEnAlcance = aniosSeleccionados.length ? aniosSeleccionados.slice().sort() : catalogosAnio.slice().sort();
     const multiAnio = aniosEnAlcance.length > 1;
-    if (subt) subt.textContent = multiAnio ? _periodoCompletoTexto(aniosEnAlcance, true) : _conSufijoPeriodo(`Estacionalidad ${aniosEnAlcance[0] || ""}`);
-    // ACT15 (punto 2): mismo criterio que Tendencia — sólo los meses en
-    // alcance según Mes/Semana elegidos, nunca los 12 fijos si se excluyó
-    // alguno a propósito.
-    const mesesEnAlcance = _temporalMesesEnAlcance();
+    if (subt) subt.textContent = (multiAnio ? _periodoCompletoTextoP(aniosEnAlcance, true) : _conSufijoPeriodoP(`Estacionalidad ${aniosEnAlcance[0] || ""}`)) + (multiAnio ? "" : _notaAnioParcial(aniosEnAlcance));
+    const mesesEnAlcance = _temporalMesesEnAlcanceP();
     const etiquetas = mesesEnAlcance.map(_nombreMes);
-    const tituloPartes = { indicador: "Casos", dimension: "mes", padecimiento: _padecimientoTitulo(), lugar: lugarTexto(), periodo: _periodoTituloTexto(aniosEnAlcance, multiAnio) };
-
+    const tituloPartes = { indicador: "Casos", dimension: "mes", padecimiento: _padecimientoTitulo(), lugar: "el estado de Querétaro", periodo: _periodoTituloTextoP(aniosEnAlcance, multiAnio) };
     function valoresDeAnio(anio) {
       return mesesEnAlcance.map((mes) => {
-        const filtros = filtrosActivosT.concat([{ colIdx: idxColT.anio, valor: anio }, { colIdx: idxColT.mes, valor: mes }]);
-        const resultados = svcCarga.agregar(rowsTFiltradas, idxColT.mes, idxColT.casos, filtros);
-        if (!resultados.length) return null; // sin información cargada ese mes: no se dibuja como 0
+        const filtros = filtrosActivos.concat([{ colIdx: idxP.anio, valor: anio }, { colIdx: idxP.mes, valor: mes }]);
+        const resultados = svcCarga.agregar(rowsPFiltradas, idxP.mes, idxP.casos, filtros);
+        if (!resultados.length) return null;
         return resultados.reduce((s, r) => s + r.valor, 0);
       });
     }
-
-    // Gráfica vertical (meses en el eje X, siempre 12 fijos): el alto no
-    // depende del número de categorías (no aplica _ajustarAlturaBarra,
-    // pensada para barras horizontales), pero sí usa el mismo grosor y
-    // separación uniformes que el resto de Morbilidad (ACT09).
     if (multiAnio) {
       const series = aniosEnAlcance.map((anio) => ({ label: anio, data: valoresDeAnio(anio) }));
-      panoramaCharts["morb-chart-mesanio"] = SNSP_renderGroupedBarChart("morb-chart-mesanio", etiquetas, series, "Casos", Object.assign({ wrapAt: 26, tituloPartes }, _morbBarraOpts(true), MORB_OPTS_ETIQUETA_MENSUAL));
+      panoramaCharts["morb-p-chart-mesanio"] = SNSP_renderGroupedBarChart("morb-p-chart-mesanio", etiquetas, series, "Casos", Object.assign({ wrapAt: 26, tituloPartes }, _morbBarraOpts(true), MORB_OPTS_ETIQUETA_MENSUAL));
     } else {
       const valores = valoresDeAnio(aniosEnAlcance[0]);
-      panoramaCharts["morb-chart-mesanio"] = SNSP_renderBarChart("morb-chart-mesanio", etiquetas, valores, "Casos", Object.assign({ wrapAt: 26, tituloPartes }, _morbBarraOpts(false), MORB_OPTS_ETIQUETA_MENSUAL));
+      panoramaCharts["morb-p-chart-mesanio"] = SNSP_renderBarChart("morb-p-chart-mesanio", etiquetas, valores, "Casos", Object.assign({ wrapAt: 26, tituloPartes }, _morbBarraOpts(false), MORB_OPTS_ETIQUETA_MENSUAL));
     }
   }
 
-  function renderPanoramaCasos() {
-    const filtrosActivos = _filtrosActivos();
-    const filtrosActivosT = _filtrosActivosTemporal();
+  function renderPanoramaP() {
+    const filtrosActivos = _filtrosActivosP();
     const aniosSeleccionados = _aniosEnAlcance();
     const modoComparativo = aniosSeleccionados.length >= 2;
-    renderChartMunicipio(filtrosActivos, aniosSeleccionados, modoComparativo);
-    renderChartJurisdiccion(filtrosActivos, aniosSeleccionados, modoComparativo);
-    renderChartInstitucion(filtrosActivos, aniosSeleccionados, modoComparativo);
-    renderChartGrupoEdad(filtrosActivos, aniosSeleccionados, modoComparativo);
     renderChartPadecimientos(filtrosActivos, aniosSeleccionados, modoComparativo);
-    renderChartSexo(filtrosActivosT, aniosSeleccionados, modoComparativo);
-    renderChartTendencia(filtrosActivosT, aniosSeleccionados);
-    renderChartMesAnio(filtrosActivosT, aniosSeleccionados);
+    renderChartGrupoEdadP(filtrosActivos, aniosSeleccionados, modoComparativo);
+    renderChartSexoP(filtrosActivos, aniosSeleccionados, modoComparativo);
+    renderChartTendenciaP(filtrosActivos, aniosSeleccionados);
+    renderChartMesAnioP(filtrosActivos, aniosSeleccionados);
   }
 
-  function renderTablero() {
-    if (chart) { chart.destroy(); chart = null; }
+  function renderTableroP() {
+    if (!document.getElementById("morb-p-chart")) return;
+    if (chartP) { chartP.destroy(); chartP = null; }
+    rowsPFiltradas = _filtrarPorMesSemanaP(rowsP);
 
-    // ACT15 (punto 1): Mes/Semana ahora son de selección múltiple y se
-    // aplican como pre-filtro sobre las filas (nunca sobre Población,
-    // que sigue siendo anual) antes de cualquier svcCarga.agregar*().
-    // Se recalculan aquí, al inicio de cada render, y quedan visibles
-    // por cierre (closure) a renderPanoramaCasos() y a todas las
-    // funciones internas que ya usan rowsCasosFiltradas/rowsTFiltradas.
-    rowsCasosFiltradas = _filtrarPorMesSemana(rows, idxCol);
-    rowsTFiltradas = idxColT ? _filtrarPorMesSemana(rowsT, idxColT) : rowsT;
-
-    const filtrosActivos = _filtrosActivos();
+    const filtrosActivos = _filtrosActivosP();
     const aniosSeleccionados = _aniosEnAlcance();
     const modoComparativo = aniosSeleccionados.length >= 2;
-    const dimKey = selDim.value;
-    const dimIdx = dimColMap[dimKey];
-    const nombreDim = dimLabelMap[dimKey];
-    const medida = nombreMedida();
-    const campo = selMedida.value === "poblacion" ? "poblacion" : (selMedida.value === "tasa" ? "tasa" : "valorCasos");
+    const dimKey = selDimP ? selDimP.value : "padecimiento";
+    const dimIdx = dimColMapP[dimKey];
+    const nombreDim = dimLabelMapP[dimKey];
 
-    // Filas consideradas (para el KPI de transparencia), respetando el
-    // mismo alcance de año que se está mostrando.
     const filtrosParaTotales = aniosSeleccionados.length === 1
-      ? filtrosActivos.concat([{ colIdx: idxCol.anio, valor: aniosSeleccionados[0] }])
+      ? filtrosActivos.concat([{ colIdx: idxP.anio, valor: aniosSeleccionados[0] }])
       : filtrosActivos;
-    const filasConsideradas = rowsCasosFiltradas.filter((r) => {
+    const filasConsideradas = rowsPFiltradas.filter((r) => {
       if (!filtrosActivos.every((f) => String(r[f.colIdx] || "").trim() === f.valor)) return false;
-      if (aniosSeleccionados.length === 1) return String(r[idxCol.anio] || "").trim() === aniosSeleccionados[0];
+      if (aniosSeleccionados.length === 1) return String(r[idxP.anio] || "").trim() === aniosSeleccionados[0];
       return true;
     }).length;
 
     let agregado;
     if (modoComparativo) {
-      const resultados = svcCarga.agregarComparativoConPoblacion(
-        rowsCasosFiltradas, dimIdx, idxCol.casos, filtrosActivos, idxCol.anio, aniosSeleccionados, joinCols, poblacionIndex.mapa
-      );
-      agregado = resultados.map((r) => {
-        const valores = {};
-        aniosSeleccionados.forEach((y) => {
-          const datoAnio = r.valores[y];
-          let v = datoAnio ? datoAnio[campo] : null;
-          if (v === null || v === undefined) v = 0;
-          if (campo === "tasa") v = Math.round(v * 10) / 10;
-          valores[y] = v;
-        });
-        return { categoria: r.categoria, valores };
-      });
+      const resultados = svcCarga.agregarComparativo(rowsPFiltradas, dimIdx, idxP.casos, filtrosActivos, idxP.anio, aniosSeleccionados);
+      agregado = resultados.map((r) => ({ categoria: r.categoria, valores: r.valores }));
       agregado.sort((a, b) => {
         const totalA = aniosSeleccionados.reduce((s, y) => s + (a.valores[y] || 0), 0);
         const totalB = aniosSeleccionados.reduce((s, y) => s + (b.valores[y] || 0), 0);
         return totalB - totalA;
       });
     } else {
-      const resultados = svcCarga.agregarConPoblacion(rowsCasosFiltradas, dimIdx, idxCol.casos, filtrosParaTotales, joinCols, poblacionIndex.mapa);
-      agregado = resultados.map((r) => {
-        let v = r[campo];
-        if (v === null || v === undefined) v = 0;
-        if (campo === "tasa") v = Math.round(v * 10) / 10;
-        return { categoria: r.categoria, valor: v };
-      });
+      const resultados = svcCarga.agregar(rowsPFiltradas, dimIdx, idxP.casos, filtrosParaTotales);
+      agregado = resultados.map((r) => ({ categoria: r.categoria, valor: r.valor }));
       agregado.sort((a, b) => b.valor - a.valor);
     }
 
-    // ---- ACT09 (ajuste de seguimiento): Top N de la gráfica/tabla
-    // principal — SÓLO aplica cuando Por=Padecimiento (la única dimensión
-    // que puede crecer hasta 157 categorías; Municipio/Jurisdicción/Grupo
-    // de edad siguen mostrando siempre todas las suyas, igual que en el
-    // resto de Morbilidad). El total de categorías se guarda ANTES de
-    // recortar (mismo agregado ya calculado arriba, ningún cálculo nuevo)
-    // para que el KPI "Categorías encontradas" y el aviso "Top N de M" no
-    // dependan del recorte visual.
     const totalCategorias = agregado.length;
-    const topNPrincipal = dimKey === "padecimiento" ? _topNPrincipal() : null;
-    if (selPrincipalTopN) selPrincipalTopN.disabled = dimKey !== "padecimiento";
-    if (topNPrincipal) agregado = agregado.slice(0, topNPrincipal);
-    const subtPrincipal = document.getElementById("morb-subt-principal");
+    const topNPrincipal = dimKey === "padecimiento" ? _topNPrincipalP() : null;
+    if (selPrincipalTopNP) selPrincipalTopNP.disabled = dimKey !== "padecimiento";
+    const agregadoDibujo = topNPrincipal ? agregado.slice(0, topNPrincipal) : agregado;
+    const subtPrincipal = document.getElementById("morb-p-subt-principal");
     if (subtPrincipal) {
       subtPrincipal.textContent = (topNPrincipal && totalCategorias > topNPrincipal)
-        ? `Se actualiza automáticamente con Analizar, Por, Año y los filtros — Top ${topNPrincipal} de ${totalCategorias} categorías de ${nombreDim}`
-        : "Se actualiza automáticamente con Analizar, Por, Año y los filtros";
+        ? `Se actualiza automáticamente con Por, Año, Mes/Semana y la búsqueda — Top ${topNPrincipal} de ${totalCategorias} categorías de ${nombreDim}`
+        : "Se actualiza automáticamente con Por, Año, Mes/Semana y la búsqueda";
     }
 
-    // Mismo criterio de alto que los 8 paneles del Panorama de Casos
-    // (ACT09: gráficas de Morbilidad uniformes) — el mínimo se deja algo
-    // más alto (420) porque esta gráfica puede llegar a 157 categorías
-    // con Por=Padecimiento sin selección.
-    _ajustarAlturaBarra("morb-chart-wrap", agregado.map((r) => r.categoria), modoComparativo, aniosSeleccionados.length);
-    const chartWrapMinimo = document.getElementById("morb-chart-wrap");
+    _ajustarAlturaBarra("morb-p-chart-wrap", agregadoDibujo.map((r) => r.categoria), modoComparativo, aniosSeleccionados.length);
+    const chartWrapMinimo = document.getElementById("morb-p-chart-wrap");
     if (chartWrapMinimo && parseFloat(chartWrapMinimo.style.height) < 420) chartWrapMinimo.style.height = "420px";
 
-    const tituloPartes = {
-      indicador: medida,
-      dimension: nombreDim,
-      padecimiento: seleccionPadecimiento ? `${seleccionPadecimiento.cie10_texto ? seleccionPadecimiento.cie10_texto + " — " : ""}${seleccionPadecimiento.padecimiento}` : null,
-      lugar: lugarTexto(),
-      periodo: _periodoTituloTexto(aniosSeleccionados, modoComparativo),
-    };
+    const tituloPartes = { indicador: "Casos", dimension: nombreDim, padecimiento: _padecimientoTitulo(), lugar: "el estado de Querétaro", periodo: _periodoTituloTextoP(aniosSeleccionados, modoComparativo) };
 
     if (modoComparativo) {
-      chart = SNSP_renderGroupedBarChart(
-        "morb-chart",
-        agregado.map((r) => r.categoria),
-        aniosSeleccionados.map((y) => ({ label: y, data: agregado.map((r) => r.valores[y] || 0) })),
-        medida,
-        Object.assign({ horizontal: true, wrapAt: 34, tituloPartes }, _morbBarraOpts(modoComparativo))
+      chartP = SNSP_renderGroupedBarChart(
+        "morb-p-chart", agregadoDibujo.map((r) => r.categoria),
+        aniosSeleccionados.map((y) => ({ label: y, data: agregadoDibujo.map((r) => r.valores[y] || 0) })),
+        "Casos", Object.assign({ horizontal: true, wrapAt: 34, tituloPartes }, _morbBarraOpts(modoComparativo))
       );
     } else {
-      chart = SNSP_renderBarChart(
-        "morb-chart",
-        agregado.map((r) => r.categoria),
-        agregado.map((r) => r.valor),
-        medida,
-        Object.assign({ horizontal: true, wrapAt: 34, tituloPartes }, _morbBarraOpts(modoComparativo))
+      chartP = SNSP_renderBarChart(
+        "morb-p-chart", agregadoDibujo.map((r) => r.categoria), agregadoDibujo.map((r) => r.valor),
+        "Casos", Object.assign({ horizontal: true, wrapAt: 34, tituloPartes }, _morbBarraOpts(modoComparativo))
       );
     }
-    if (chart) {
-      if (!chart.options.scales) chart.options.scales = {};
-      if (!chart.options.scales.y) chart.options.scales.y = {};
-      chart.options.scales.y.ticks = Object.assign({}, chart.options.scales.y.ticks, { autoSkip: false });
-      chart.options.animation = false;
-      chart.update();
+    if (chartP) {
+      if (!chartP.options.scales) chartP.options.scales = {};
+      if (!chartP.options.scales.y) chartP.options.scales.y = {};
+      chartP.options.scales.y.ticks = Object.assign({}, chartP.options.scales.y.ticks, { autoSkip: false });
+      chartP.options.animation = false;
+      chartP.update();
     }
 
-    // ---- Tabla ----
     if (modoComparativo) {
       const hayDiferencia = aniosSeleccionados.length === 2;
-      document.getElementById("morb-tabla-head").innerHTML =
-        `<tr><th>#</th><th>Categoría</th>` +
-        aniosSeleccionados.map((y) => `<th>${medida} ${y}</th>`).join("") +
-        (hayDiferencia ? `<th>Diferencia</th><th>Variación %</th>` : "") +
-        `</tr>`;
-      document.getElementById("morb-tabla-body").innerHTML = agregado.map((r, i) => {
+      document.getElementById("morb-p-tabla-head").innerHTML =
+        `<tr><th>#</th><th>Categoría</th>` + aniosSeleccionados.map((y) => `<th>Casos ${y}</th>`).join("") +
+        (hayDiferencia ? `<th>Diferencia</th><th>Variación %</th>` : "") + `</tr>`;
+      document.getElementById("morb-p-tabla-body").innerHTML = agregadoDibujo.map((r, i) => {
         const vals = aniosSeleccionados.map((y) => r.valores[y] || 0);
         let extra = "";
         if (hayDiferencia) {
@@ -1271,89 +1232,73 @@ function SNSP_renderMorbilidadModulePage(opts) {
           const variacion = vals[0] > 0 ? (diff / vals[0]) * 100 : null;
           const color = diff > 0 ? "var(--accent-positive)" : (diff < 0 ? "var(--accent-alert)" : "inherit");
           const signo = diff > 0 ? "+" : "";
-          extra = `<td style="color:${color};">${signo}${diff.toLocaleString("es-MX")}</td>` +
-            `<td style="color:${color};">${variacion === null ? "—" : (variacion > 0 ? "+" : "") + variacion.toFixed(1) + "%"}</td>`;
+          extra = `<td style="color:${color};">${signo}${diff.toLocaleString("es-MX")}</td><td style="color:${color};">${variacion === null ? "—" : (variacion > 0 ? "+" : "") + variacion.toFixed(1) + "%"}</td>`;
         }
-        return `<tr>
-          <td><span class="rank-badge ${i < 3 ? "top" : ""}">${i + 1}</span></td>
-          <td class="col-text">${r.categoria}</td>
-          ${vals.map((v) => `<td>${v.toLocaleString("es-MX")}</td>`).join("")}
-          ${extra}
-        </tr>`;
+        return `<tr><td><span class="rank-badge ${i < 3 ? "top" : ""}">${i + 1}</span></td><td class="col-text">${r.categoria}</td>${vals.map((v) => `<td>${v.toLocaleString("es-MX")}</td>`).join("")}${extra}</tr>`;
       }).join("");
-      document.getElementById("morb-tabla-count").textContent =
-        `${agregado.length.toLocaleString("es-MX")} categorías de ${nombreDim}` +
+      document.getElementById("morb-p-tabla-count").textContent =
+        `${agregadoDibujo.length.toLocaleString("es-MX")} categorías de ${nombreDim}` +
         (topNPrincipal && totalCategorias > topNPrincipal ? ` (Top ${topNPrincipal} de ${totalCategorias})` : "") +
-        ` — ${_periodoCompletoTexto(aniosSeleccionados, true)}`;
+        ` — ${_periodoCompletoTextoP(aniosSeleccionados, true)}`;
     } else {
-      document.getElementById("morb-tabla-head").innerHTML = `<tr><th>#</th><th>Categoría</th><th>${medida}</th></tr>`;
-      document.getElementById("morb-tabla-body").innerHTML = agregado.map((r, i) => `
-        <tr>
-          <td><span class="rank-badge ${i < 3 ? "top" : ""}">${i + 1}</span></td>
-          <td class="col-text">${r.categoria}</td>
-          <td>${campo === "tasa"
-            ? r.valor.toLocaleString("es-MX", { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-            : Math.round(r.valor).toLocaleString("es-MX")}</td>
-        </tr>
+      document.getElementById("morb-p-tabla-head").innerHTML = `<tr><th>#</th><th>Categoría</th><th>Casos</th></tr>`;
+      document.getElementById("morb-p-tabla-body").innerHTML = agregadoDibujo.map((r, i) => `
+        <tr><td><span class="rank-badge ${i < 3 ? "top" : ""}">${i + 1}</span></td><td class="col-text">${r.categoria}</td><td>${Math.round(r.valor).toLocaleString("es-MX")}</td></tr>
       `).join("");
-      document.getElementById("morb-tabla-count").textContent =
-        `${agregado.length.toLocaleString("es-MX")} categorías de ${nombreDim}` +
+      document.getElementById("morb-p-tabla-count").textContent =
+        `${agregadoDibujo.length.toLocaleString("es-MX")} categorías de ${nombreDim}` +
         (topNPrincipal && totalCategorias > topNPrincipal ? ` (Top ${topNPrincipal} de ${totalCategorias})` : "");
     }
 
-    // ---- KPI ----
-    const totales = _calcularTotales(filtrosParaTotales);
-    let kpiValor, kpiLabel, kpiFootnote;
-    if (selMedida.value === "poblacion") {
-      kpiLabel = "Población relacionada";
-      kpiValor = totales.totalPoblacion !== null ? Math.round(totales.totalPoblacion).toLocaleString("es-MX") : null;
-      kpiFootnote = totales.totalPoblacion !== null ? "Suma sin duplicar, por Año+Municipio+Grupo de edad" : "Sin población relacionada para esta selección";
-    } else if (selMedida.value === "tasa") {
-      kpiLabel = "Tasa global (por 100,000 hab.)";
-      kpiValor = totales.tasaGlobal !== null ? totales.tasaGlobal.toLocaleString("es-MX", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : null;
-      kpiFootnote = totales.tasaGlobal !== null
-        ? `${totales.totalCasos.toLocaleString("es-MX")} casos / ${Math.round(totales.totalPoblacion).toLocaleString("es-MX")} hab.`
-        : "Sin población relacionada para esta selección";
-    } else {
-      kpiLabel = "Casos totales";
-      kpiValor = totales.totalCasos.toLocaleString("es-MX");
-      kpiFootnote = seleccionPadecimiento ? seleccionPadecimiento.padecimiento : lugarTexto();
-    }
+    const totalCasosP = filasConsideradas ? rowsPFiltradas.filter((r) => {
+      if (!filtrosActivos.every((f) => String(r[f.colIdx] || "").trim() === f.valor)) return false;
+      if (aniosSeleccionados.length === 1) return String(r[idxP.anio] || "").trim() === aniosSeleccionados[0];
+      return true;
+    }).reduce((s, r) => s + (parseInt(r[idxP.casos], 10) || 0), 0) : 0;
 
-    document.getElementById("kpi-grid").innerHTML = [
-      { label: "Combinaciones en la base", value: rows.length.toLocaleString("es-MX"), accent: "var(--c-vino)", footnote: `${datos.meta.filas_originales.toLocaleString("es-MX")} filas originales agregadas` },
-      { label: "Filas consideradas", value: filasConsideradas.toLocaleString("es-MX"), accent: "var(--c-dorado)", footnote: filtrosActivos.length ? "Con los filtros/selección aplicados" : "Sin filtros aplicados" },
+    document.getElementById("kpi-grid-p").innerHTML = [
+      { label: "Combinaciones en la base", value: rowsP.length.toLocaleString("es-MX"), accent: "var(--c-vino)", footnote: `${datosP.meta.filas_originales.toLocaleString("es-MX")} filas originales agregadas` },
+      { label: "Filas consideradas", value: filasConsideradas.toLocaleString("es-MX"), accent: "var(--c-dorado)", footnote: filtrosActivos.length ? "Con la búsqueda aplicada" : "Sin búsqueda aplicada" },
       { label: "Categorías encontradas", value: totalCategorias.toLocaleString("es-MX"), accent: "var(--c-verde-claro)", footnote: (topNPrincipal && totalCategorias > topNPrincipal) ? `${nombreDim} — mostrando Top ${topNPrincipal}` : nombreDim },
-      { label: kpiLabel, value: kpiValor, accent: "var(--c-rojo-claro)", footnote: kpiFootnote },
+      { label: "Casos totales", value: totalCasosP.toLocaleString("es-MX"), accent: "var(--c-rojo-claro)", footnote: seleccionPadecimiento ? seleccionPadecimiento.padecimiento : "el estado de Querétaro" },
     ].map(SNSP_indicatorCardHTML).join("");
 
-    // ---- Panorama de Casos: 8 paneles fijos, misma selección vigente ----
-    renderPanoramaCasos();
+    renderPanoramaP();
   }
 
-  document.getElementById("source-label").textContent =
-    `BASE_CASOS_2025_2026 + BASE_POBLACION_2025_2026, estado de Querétaro (${(catalogos.anios || []).join("-")}) — ${catalogoPadecimientos.length} padecimientos`;
-  document.getElementById("version-tag-module").textContent = window.SNSP_CONFIG.platform.version;
+  // =======================================================================
+  // Pestañas Bloque 1 / Bloque 2
+  // =======================================================================
+  const tabBtnH = document.getElementById("morb-tab-bloque1");
+  const tabBtnP = document.getElementById("morb-tab-bloque2");
+  const panelH = document.getElementById("morb-bloque1-panel");
+  const panelP = document.getElementById("morb-bloque2-panel");
+  function _activarTab(cual) {
+    if (tabBtnH) tabBtnH.classList.toggle("is-active", cual === "h");
+    if (tabBtnP) tabBtnP.classList.toggle("is-active", cual === "p");
+    if (panelH) panelH.hidden = cual !== "h";
+    if (panelP) panelP.hidden = cual !== "p";
+  }
+  if (tabBtnH) tabBtnH.addEventListener("click", () => _activarTab("h"));
+  if (tabBtnP) tabBtnP.addEventListener("click", () => _activarTab("p"));
 
-  // ===================================================================
-  // Punto 3 del ajuste de seguimiento a ACT09 — "Generar reporte PDF":
-  // documento de TEXTO Y TABLAS (nunca una captura de pantalla de las
-  // gráficas) armado en el navegador con jsPDF + jsPDF-AutoTable, mismo
-  // criterio de orientación adaptable ya validado en Cargar datos (ACT06
-  // — vertical primero, horizontal sólo si no cabe, nunca se reduce la
-  // letra), adaptado aquí sin la parte de captura de canvas. Sólo se
-  // generan las secciones que la usuaria elige en el modal, y SIEMPRE
-  // con los filtros, la búsqueda y el/los Año(s) vigentes en el tablero:
-  // ninguna sección se recalcula aparte — el KPI y la tabla principal se
-  // leen del DOM ya renderizado (mismo Top N, mismos valores que se ven
-  // en pantalla) y cada panel del Panorama de Casos se lee directo de su
-  // instancia de Chart.js ya dibujada (mismas categorías/series que el
-  // usuario está viendo, comparativo 2025 vs 2026 incluido).
-  // ===================================================================
+  // -----------------------------------------------------------------------
+  // Pie de fuente y versión
+  // -----------------------------------------------------------------------
+  const sourceLabel = document.getElementById("source-label");
+  if (sourceLabel) {
+    sourceLabel.textContent =
+      `BASE_CASOS_HISTORICOS_SUIVE_QRO_2022_2026 (Bloque 1) + BASE_PADECIMIENTOS_SUIVE_QRO_2022_2026 (Bloque 2) + EXTRACCION_POBLACION_SUIVE_QRO_2022_2026 (Bloque 3), estado de Querétaro (${catalogosAnio.join("-")}, ${ANIO_PARCIAL ? ANIO_PARCIAL + " parcial Ene-Sep" : ""}) — ${catalogoPadecimientos.length} padecimientos — 3,551,200 casos totales verificados`;
+  }
+  const versionTag = document.getElementById("version-tag-module");
+  if (versionTag) versionTag.textContent = window.SNSP_CONFIG.platform.version;
+
+  // =======================================================================
+  // PDF / Vista previa — secciones combinadas de ambos bloques
+  // =======================================================================
   function _morbPdfAnchoTexto(texto, fontSize) {
     return String(texto === undefined || texto === null ? "" : texto).length * fontSize * 0.52;
   }
-
   function _morbPdfAnchoColumnas(head, filas, fontSize) {
     return head.map((h, i) => {
       let max = _morbPdfAnchoTexto(h, fontSize) + 14;
@@ -1368,12 +1313,6 @@ function SNSP_renderMorbilidadModulePage(opts) {
       return Math.max(minCol, Math.min(maxColIndividual, max));
     });
   }
-
-  // Igual que _decidirOrientacionPDF en modules/cargaModuleView.js (ACT06):
-  // primero intenta vertical; sólo si la tabla no cabe sin comprimirse,
-  // cambia a horizontal. Si ni así alcanza, reparte proporcionalmente el
-  // ancho disponible entre columnas (autoTable ajusta con salto de línea,
-  // nunca con letra más chica).
   function _morbPdfOrientacion(head, filas) {
     const fontSize = 9;
     const margenXLocal = 40;
@@ -1390,14 +1329,6 @@ function SNSP_renderMorbilidadModulePage(opts) {
     if (anchoIdealTotal <= anchoPortrait) return { orientation: "portrait", anchosCol: anchosIdeal };
     return { orientation: "landscape", anchosCol: ajustarA(anchoLandscape, anchosIdeal) };
   }
-
-  // ---- Lee una tabla {head, rows} directamente de una instancia de
-  // Chart.js YA DIBUJADA (barra simple, barra agrupada, línea o dona) —
-  // el mismo dato que la usuaria ve en pantalla, nunca un cálculo aparte.
-  // Con 2 series (comparativo 2025 vs 2026) agrega Diferencia/Variación %,
-  // igual que la tabla principal. Un valor `null` (mes sin información
-  // cargada, ver Tendencia/Comparativo por mes y año) se imprime como
-  // "Sin información", nunca como "0", para no confundir ambos casos. ----
   function _tablaDesdeChartInstance(chartInst, categoriaLabel) {
     if (!chartInst || !chartInst.data) return null;
     const labels = (chartInst.data.labels || []).map((l) => (Array.isArray(l) ? l.join(" ") : String(l)));
@@ -1426,13 +1357,6 @@ function SNSP_renderMorbilidadModulePage(opts) {
     });
     return { head, rows };
   }
-
-  // ---- Captura una instancia de Chart.js YA DIBUJADA como imagen (fondo
-  // blanco pintado aparte, porque JPEG no soporta transparencia), escalada
-  // al ancho disponible con un TOPE de alto — mismo criterio ya validado en
-  // Cargar datos (ACT06). Nunca lanza: si el canvas no puede exportarse
-  // (p. ej. entorno sin soporte de canvas.toDataURL, como las pruebas
-  // jsdom), la sección sigue con su tabla, sin la imagen. ----
   function _capturarImagenGrafica(chartInst, anchoMax, altoMax) {
     if (!chartInst || !chartInst.canvas) return null;
     try {
@@ -1459,12 +1383,8 @@ function SNSP_renderMorbilidadModulePage(opts) {
       return null;
     }
   }
-
-  // ---- Indicadores y tabla principal: se leen directo del DOM ya
-  // renderizado (WYSIWYG con lo que la usuaria ve, Top N ya aplicado),
-  // en vez de recalcular nada aparte. ----
-  function _morbPdfTablaKPI() {
-    const tarjetas = Array.from(document.querySelectorAll("#kpi-grid .indicator-card"));
+  function _morbPdfTablaKPI(gridId) {
+    const tarjetas = Array.from(document.querySelectorAll(`#${gridId} .indicator-card`));
     const head = ["Indicador", "Valor", "Detalle"];
     const rows = tarjetas.map((card) => {
       const label = (card.querySelector(".indicator-card__label") || {}).textContent || "";
@@ -1474,26 +1394,25 @@ function SNSP_renderMorbilidadModulePage(opts) {
     });
     return { head, rows };
   }
-
-  function _morbPdfTablaPrincipal() {
-    const headCells = Array.from(document.querySelectorAll("#morb-tabla-head th")).map((th) => th.textContent.trim());
-    const rows = Array.from(document.querySelectorAll("#morb-tabla-body tr")).map((tr) =>
+  function _morbPdfTablaPrincipal(headSelector, bodySelector) {
+    const headCells = Array.from(document.querySelectorAll(headSelector)).map((th) => th.textContent.trim());
+    const rows = Array.from(document.querySelectorAll(bodySelector)).map((tr) =>
       Array.from(tr.querySelectorAll("td")).map((td) => td.textContent.trim())
     );
     return { head: headCells, rows };
   }
-
   function _morbPdfFiltrosTexto() {
     const partes = [];
-    if (currentFilters.municipio_morbilidad) partes.push(`Municipio = "${currentFilters.municipio_morbilidad}"`);
-    if (currentFilters.jurisdiccion_morbilidad) partes.push(`Jurisdicción sanitaria = "${currentFilters.jurisdiccion_morbilidad}"`);
-    if (currentFilters.institucion_morbilidad) partes.push(`Institución = "${currentFilters.institucion_morbilidad}"`);
-    // ACT15: selección múltiple — se listan todos los valores elegidos,
-    // no sólo uno.
-    const mesesSel = _mesesSeleccionados();
-    const semanasSel = _semanasSeleccionadas();
-    if (mesesSel.length) partes.push(`Mes = "${mesesSel.map(_nombreMesLargo).join(", ")}"`);
-    if (semanasSel.length) partes.push(`Semana epidemiológica = "${semanasSel.join(", ")}"`);
+    if (currentFiltersH.municipio_morbilidad) partes.push(`Municipio = "${currentFiltersH.municipio_morbilidad}"`);
+    if (currentFiltersH.jurisdiccion_morbilidad) partes.push(`Jurisdicción sanitaria = "${currentFiltersH.jurisdiccion_morbilidad}"`);
+    if (currentFiltersH.institucion_morbilidad) partes.push(`Institución = "${currentFiltersH.institucion_morbilidad}"`);
+    if (currentFiltersH.unidad_medica_morbilidad) partes.push(`Unidad médica = "${currentFiltersH.unidad_medica_morbilidad}"`);
+    const mesesSelH = _mesesSeleccionadosH();
+    if (mesesSelH.length) partes.push(`Mes (Bloque 1) = "${mesesSelH.map(_nombreMesLargo).join(", ")}"`);
+    const mesesSelP = _mesesSeleccionadosP();
+    const semanasSelP = _semanasSeleccionadasP();
+    if (mesesSelP.length) partes.push(`Mes (Bloque 2) = "${mesesSelP.map(_nombreMesLargo).join(", ")}"`);
+    if (semanasSelP.length) partes.push(`Semana epidemiológica (Bloque 2) = "${semanasSelP.join(", ")}"`);
     if (seleccionPadecimiento) {
       const etq = `${seleccionPadecimiento.cie10_texto ? seleccionPadecimiento.cie10_texto + " — " : ""}${seleccionPadecimiento.padecimiento}`;
       partes.push(`Padecimiento = "${etq}"`);
@@ -1501,56 +1420,57 @@ function SNSP_renderMorbilidadModulePage(opts) {
     return partes.length ? partes.join("; ") : "Ninguno";
   }
 
-  // Catálogo de secciones seleccionables en el modal — "kpi" y "principal"
-  // se resuelven aparte (DOM), el resto lee su instancia de Chart.js ya
-  // dibujada del Panorama de Casos (panoramaCharts, ver arriba).
   const MORB_PDF_SECCIONES = [
-    { valor: "kpi", titulo: "Indicadores" },
-    { valor: "principal", titulo: "Gráfica y tabla principal (Analizar/Por)" },
-    { valor: "municipio", titulo: "Casos por municipio", categoriaLabel: "Municipio" },
-    { valor: "jurisdiccion", titulo: "Casos por jurisdicción sanitaria", categoriaLabel: "Jurisdicción sanitaria" },
-    { valor: "institucion", titulo: "Casos por institución", categoriaLabel: "Institución" },
-    { valor: "grupoedad", titulo: "Casos por grupo de edad", categoriaLabel: "Grupo de edad" },
-    { valor: "sexo", titulo: "Casos por sexo", categoriaLabel: "Sexo" },
-    { valor: "padecimientos", titulo: "Padecimiento(s) dentro de la selección", categoriaLabel: "Padecimiento" },
-    { valor: "tendencia", titulo: "Tendencia por año/mes", categoriaLabel: "Mes" },
-    { valor: "mesanio", titulo: "Comparativo por mes y año", categoriaLabel: "Mes" },
+    { valor: "kpi_h", titulo: "Bloque 1 — Indicadores (Casos/Territorio/Instituciones)" },
+    { valor: "principal_h", titulo: "Bloque 1 — Gráfica y tabla principal" },
+    { valor: "municipio", titulo: "Bloque 1 — Casos por municipio", categoriaLabel: "Municipio" },
+    { valor: "jurisdiccion", titulo: "Bloque 1 — Casos por jurisdicción sanitaria", categoriaLabel: "Jurisdicción sanitaria" },
+    { valor: "institucion", titulo: "Bloque 1 — Casos por institución", categoriaLabel: "Institución" },
+    { valor: "unidadmedica", titulo: "Bloque 1 — Casos por unidad médica", categoriaLabel: "Unidad médica" },
+    { valor: "grupoedad", titulo: "Bloque 1 — Casos por grupo de edad", categoriaLabel: "Grupo de edad" },
+    { valor: "sexo", titulo: "Bloque 1 — Casos por sexo", categoriaLabel: "Sexo" },
+    { valor: "tendencia", titulo: "Bloque 1 — Tendencia por año/mes", categoriaLabel: "Mes" },
+    { valor: "mesanio", titulo: "Bloque 1 — Comparativo por mes y año", categoriaLabel: "Mes" },
+    { valor: "kpi_p", titulo: "Bloque 2 — Indicadores (Padecimientos)" },
+    { valor: "principal_p", titulo: "Bloque 2 — Gráfica y tabla principal" },
+    { valor: "padecimientos", titulo: "Bloque 2 — Padecimiento(s) dentro de la selección", categoriaLabel: "Padecimiento" },
+    { valor: "grupoedad_p", titulo: "Bloque 2 — Casos por grupo de edad", categoriaLabel: "Grupo de edad" },
+    { valor: "sexo_p", titulo: "Bloque 2 — Casos por sexo", categoriaLabel: "Sexo" },
+    { valor: "tendencia_p", titulo: "Bloque 2 — Tendencia por año/mes", categoriaLabel: "Mes" },
+    { valor: "mesanio_p", titulo: "Bloque 2 — Comparativo por mes y año", categoriaLabel: "Mes" },
   ];
   const MORB_PDF_CANVAS_ID = {
-    municipio: "morb-chart-municipio",
-    jurisdiccion: "morb-chart-jurisdiccion",
-    institucion: "morb-chart-institucion",
-    grupoedad: "morb-chart-grupoedad",
-    sexo: "morb-chart-sexo",
-    padecimientos: "morb-chart-padecimientos",
-    tendencia: "morb-chart-tendencia",
-    mesanio: "morb-chart-mesanio",
+    municipio: "morb-h-chart-municipio",
+    jurisdiccion: "morb-h-chart-jurisdiccion",
+    institucion: "morb-h-chart-institucion",
+    unidadmedica: "morb-h-chart-unidadmedica",
+    grupoedad: "morb-h-chart-grupoedad",
+    sexo: "morb-h-chart-sexo",
+    tendencia: "morb-h-chart-tendencia",
+    mesanio: "morb-h-chart-mesanio",
+    padecimientos: "morb-p-chart-padecimientos",
+    grupoedad_p: "morb-p-chart-grupoedad",
+    sexo_p: "morb-p-chart-sexo",
+    tendencia_p: "morb-p-chart-tendencia",
+    mesanio_p: "morb-p-chart-mesanio",
   };
 
-  // ---- Arma cada sección elegida como {titulo, tabla:{head,rows}, chartInst}
-  // — nunca se recalcula nada: KPI/tabla principal del DOM ya renderizado,
-  // cada panel del Panorama (y la gráfica principal) de su instancia de
-  // Chart.js ya dibujada. ÚNICA fuente de estas secciones — la usan tanto
-  // el PDF real como la vista previa visual (ACT15 punto 4), para que
-  // ambos muestren EXACTAMENTE el mismo contenido, nunca uno recalculado
-  // aparte del otro. ----
   function _construirSeccionesPdfDatos(seccionesElegidas) {
     const seccionesDatos = [];
     seccionesElegidas.forEach((clave) => {
-      if (clave === "kpi") {
-        seccionesDatos.push({ clave, titulo: "Indicadores", tabla: _morbPdfTablaKPI(), chartInst: null });
-      } else if (clave === "principal") {
-        seccionesDatos.push({ clave, titulo: "Gráfica y tabla principal", tabla: _morbPdfTablaPrincipal(), chartInst: chart });
+      if (clave === "kpi_h") {
+        seccionesDatos.push({ clave, titulo: "Bloque 1 — Indicadores", tabla: _morbPdfTablaKPI("kpi-grid-h"), chartInst: null });
+      } else if (clave === "kpi_p") {
+        seccionesDatos.push({ clave, titulo: "Bloque 2 — Indicadores", tabla: _morbPdfTablaKPI("kpi-grid-p"), chartInst: null });
+      } else if (clave === "principal_h") {
+        seccionesDatos.push({ clave, titulo: "Bloque 1 — Gráfica y tabla principal", tabla: _morbPdfTablaPrincipal("#morb-h-tabla-head th", "#morb-h-tabla-body tr"), chartInst: chartH });
+      } else if (clave === "principal_p") {
+        seccionesDatos.push({ clave, titulo: "Bloque 2 — Gráfica y tabla principal", tabla: _morbPdfTablaPrincipal("#morb-p-tabla-head th", "#morb-p-tabla-body tr"), chartInst: chartP });
       } else {
         const def = MORB_PDF_SECCIONES.find((s) => s.valor === clave);
         const canvasId = MORB_PDF_CANVAS_ID[clave];
         const inst = canvasId ? panoramaCharts[canvasId] : null;
         const tabla = _tablaDesdeChartInstance(inst, def ? def.categoriaLabel : "Categoría");
-        // ACT16 (punto 5): misma nota que el subtítulo dinámico de la
-        // sección Municipio en pantalla, para que el PDF/Vista previa no
-        // parezcan reportar "18 categorías encontradas" cuando en
-        // realidad son 18 municipios mostrados (0-rellenados para poder
-        // comparar años) y sólo una parte tiene casos de verdad.
         let nota = null;
         if (clave === "municipio") {
           const conteo = _contarCategoriasConDatos(inst);
@@ -1558,44 +1478,28 @@ function SNSP_renderMorbilidadModulePage(opts) {
             nota = `${conteo.conDatos} de ${conteo.total} municipios con casos en el periodo — se muestran los ${conteo.total} para poder comparar años (0 = sin casos registrados)`;
           }
         }
+        if (clave === "unidadmedica") nota = "Se muestran las unidades médicas de mayor valor en la selección vigente (383 unidades médicas en total en la base).";
         if (def) seccionesDatos.push({ clave, titulo: def.titulo, tabla, chartInst: inst, nota });
       }
     });
     return seccionesDatos;
   }
 
-  // ---- ACT16: plan ÚNICO de páginas del reporte — se construye UNA sola
-  // vez y lo consumen tanto el PDF real (jsPDF, vía _dibujarPlanEnJsPDF)
-  // como la Vista previa (HTML, vía _renderPlanVistaPreviaHTML), para que
-  // ambos muestren EXACTAMENTE la misma distribución (ACT15 punto 4,
-  // reforzado en ACT16). Devuelve { paginas: [ { orientation, elementos } ] }.
-  // Tipos de elemento: "encabezado", "observaciones",
-  // "seccion" (título + gráfica + tabla juntos, cuando caben legibles),
-  // "seccion-imagen" (gráfica GRANDE sola, cuando no caben juntos — ACT16
-  // punto 4) y "seccion-tabla" (la tabla de esa misma sección, en la
-  // página siguiente, con "(continuación)" en el título).
   function _construirPlanReportePDF(seccionesElegidas, observaciones) {
     const margenX = 40;
     const aniosSeleccionados = _aniosEnAlcance();
     const modoComparativo = aniosSeleccionados.length >= 2;
-    const periodoPdf = _periodoCompletoTexto(aniosSeleccionados, modoComparativo);
+    const periodoPdf = _periodoCompletoTextoH(aniosSeleccionados, modoComparativo);
     const fechaGeneracion = new Date().toLocaleString("es-MX");
-    const fuenteTexto = document.getElementById("source-label").textContent || "";
+    const fuenteTexto = sourceLabel ? sourceLabel.textContent : "";
     const seccionesDatos = _construirSeccionesPdfDatos(seccionesElegidas);
 
-    // ACT14 (punto 6): la orientación se decide POR SECCIÓN, no una sola
-    // vez para todo el documento — el documento SIEMPRE empieza vertical y
-    // cada sección pasa a su propia página horizontal sólo si de verdad lo
-    // necesita, sin comprimirse; cuando la siguiente sección vuelve a
-    // caber en vertical, el documento regresa a vertical.
     const paginas = [];
     let orientationActual = "portrait";
     let pageWidth = 612, pageHeight = 792;
     let y = 44;
     let pagina = { orientation: orientationActual, elementos: [] };
-    function cerrarPagina() {
-      if (pagina.elementos.length) paginas.push(pagina);
-    }
+    function cerrarPagina() { if (pagina.elementos.length) paginas.push(pagina); }
     function nuevaPagina(orient) {
       cerrarPagina();
       orientationActual = orient;
@@ -1605,16 +1509,14 @@ function SNSP_renderMorbilidadModulePage(opts) {
       pagina = { orientation: orientationActual, elementos: [] };
     }
 
-    // Encabezado + periodo/filtros + Análisis-Observaciones: siempre en la
-    // página 1.
     pagina.elementos.push({
       tipo: "encabezado",
-      titulo: "SNSP Inteligencia Digital — Morbilidad en el estado de Querétaro",
+      titulo: "SNSP Inteligencia Digital — Morbilidad en el estado de Querétaro (2022-2026)",
       periodo: periodoPdf,
       filtros: _morbPdfFiltrosTexto(),
-      analizarPor: `${nombreMedida()} / ${dimLabelMap[selDim.value] || selDim.value}`,
+      analizarPor: `Bloque 1: ${nombreMedidaH()} / ${dimLabelMapH[selDimH ? selDimH.value : "municipio"] || ""} — Bloque 2: Casos / ${dimLabelMapP[selDimP ? selDimP.value : "padecimiento"] || ""}`,
       fecha: fechaGeneracion,
-      fuente: `${fuenteTexto} — sin fecha de corte registrada en el sistema`,
+      fuente: fuenteTexto,
     });
     y += 22 + 14 * 5;
     if (observaciones && observaciones.trim()) {
@@ -1627,10 +1529,6 @@ function SNSP_renderMorbilidadModulePage(opts) {
     const ALTO_TITULO = 20;
     const ALTO_NOTA = 14;
 
-    // Las secciones elegidas fluyen una tras otra en las MISMAS páginas (no
-    // una página nueva por sección, para no dejar páginas casi vacías); se
-    // salta de página cuando una sección no cabe en lo que resta de la
-    // vigente, o cuando necesita otra orientación.
     seccionesDatos.forEach((sec) => {
       const hayTabla = sec.tabla && sec.tabla.rows.length;
       const orientNecesaria = hayTabla ? _morbPdfOrientacion(sec.tabla.head, sec.tabla.rows).orientation : "portrait";
@@ -1641,15 +1539,6 @@ function SNSP_renderMorbilidadModulePage(opts) {
       const altoNota = sec.nota ? ALTO_NOTA : 0;
       const altoTablaEstim = hayTabla ? 20 + (sec.tabla.rows.length + 1) * ALTO_FILA_ESTIM + 10 : 24;
 
-      // ACT16 (punto 4): antes la imagen SIEMPRE se topaba a 38% del alto
-      // de página, sin importar cuánta tabla hubiera debajo — hacía que
-      // Municipio (18 categorías) se viera chico incluso con una tabla
-      // corta al lado. Ahora se intenta primero un tope más generoso
-      // (62%), dejando espacio para la tabla; si aun así título + gráfica
-      // + tabla no caben juntos en una página limpia, la gráfica se dibuja
-      // GRANDE (hasta 90% de la página) SOLA, y la tabla pasa a su propia
-      // página siguiente — "gráfica grande en una página y tabla en la
-      // siguiente" cuando no caben juntos legibles, tal como se pidió.
       const topeImagenJuntos = Math.round(altoUtilPagina * 0.62);
       const imagenJuntos = _capturarImagenGrafica(sec.chartInst, anchoDisponible, topeImagenJuntos);
       const altoImagenJuntos = imagenJuntos ? imagenJuntos.h + 12 : 0;
@@ -1677,10 +1566,6 @@ function SNSP_renderMorbilidadModulePage(opts) {
     return { paginas };
   }
 
-  // ---- Dibuja el plan de páginas con jsPDF (el PDF real). Nunca decide
-  // paginación/orientación/tamaño de imagen por su cuenta — todo eso ya
-  // viene resuelto en `plan` por _construirPlanReportePDF, la ÚNICA fuente
-  // compartida con la Vista previa. ----
   function _dibujarPlanEnJsPDF(plan) {
     const { jsPDF } = window.jspdf;
     const margenX = 40;
@@ -1701,7 +1586,7 @@ function SNSP_renderMorbilidadModulePage(opts) {
       pag.elementos.forEach((el) => {
         if (el.tipo === "encabezado") {
           doc.setFont("helvetica", "bold");
-          doc.setFontSize(15);
+          doc.setFontSize(14);
           doc.text(el.titulo, margenX, y);
           y += 22;
           doc.setFont("helvetica", "normal");
@@ -1782,9 +1667,6 @@ function SNSP_renderMorbilidadModulePage(opts) {
     return doc;
   }
 
-  // ---- Genera el PDF con las secciones elegidas. Devuelve {ok:true} o
-  // {ok:false, error} — nunca lanza, para que quien llama pueda mostrar
-  // el error dentro del modal (mismo patrón que modal-box__error). ----
   function generarReportePDFMorbilidad(seccionesElegidas, observaciones) {
     if (typeof window.jspdf === "undefined" || !window.jspdf.jsPDF) {
       return { ok: false, error: "No se pudo cargar el generador de PDF. Verifica tu conexión e intenta de nuevo." };
@@ -1796,12 +1678,6 @@ function SNSP_renderMorbilidadModulePage(opts) {
     const plan = _construirPlanReportePDF(seccionesElegidas, observaciones);
     const doc = _dibujarPlanEnJsPDF(plan);
 
-    // ---- Numeración de páginas: se agrega al final, ya con el total de
-    // páginas real (incluidas las que jsPDF-AutoTable haya abierto de más
-    // por una tabla que no cupo entera). Con páginas mezclando
-    // vertical/horizontal, el ancho/alto de CADA página no es uniforme —
-    // se lee el tamaño real de la página vigente (doc.internal.pageSize)
-    // en vez de asumir uno fijo. ----
     const totalPaginas = doc.internal.getNumberOfPages();
     for (let p = 1; p <= totalPaginas; p++) {
       doc.setPage(p);
@@ -1818,9 +1694,6 @@ function SNSP_renderMorbilidadModulePage(opts) {
     return { ok: true };
   }
 
-  // ---- Modal "Generar reporte PDF": mismo patrón de apertura/cierre ya
-  // validado en pages/admin-usuarios.html (modal-overlay/modal-box,
-  // is-open, click en el fondo cierra). ----
   const modalPdf = document.getElementById("modal-morb-pdf");
   const btnAbrirPdf = document.getElementById("btn-morb-abrir-pdf");
   const formPdf = document.getElementById("form-morb-pdf");
@@ -1828,10 +1701,6 @@ function SNSP_renderMorbilidadModulePage(opts) {
   const vistaPreviaPdf = document.getElementById("morb-pdf-vista-previa");
   const vistaPreviaResumen = document.getElementById("morb-pdf-vista-previa-resumen");
   const errorVistaPreviaPdf = document.getElementById("morb-pdf-vista-previa-error");
-  // ACT16 puntos 2 y 3: controles de zoom/ajustar-a-ancho y de paginación
-  // (Anterior | Página X de Y | Siguiente) de la Vista previa — todos
-  // opcionales (`if (el)` en cada uso) para no romper el arnés de pruebas
-  // jsdom, que usa un DOM mínimo sin esta barra de herramientas.
   const btnVpZoomMenos = document.getElementById("btn-morb-vp-zoom-menos");
   const btnVpZoomMas = document.getElementById("btn-morb-vp-zoom-mas");
   const btnVpZoomAjustar = document.getElementById("btn-morb-vp-zoom-ajustar");
@@ -1844,24 +1713,13 @@ function SNSP_renderMorbilidadModulePage(opts) {
     return Array.from(document.querySelectorAll('#morb-pdf-secciones input[name="morb-pdf-seccion"]'));
   }
 
-  // ACT14 (punto 7): guarda lo elegido al pasar a Vista previa, para que
-  // "Generar PDF" (paso final) use EXACTAMENTE lo que se mostró en el
-  // resumen — nunca vuelve a leer el formulario en ese momento.
   let _vistaPreviaDatos = null;
-  let _vistaPreviaZoom = 1; // ACT16 (punto 2)
-  let _vistaPreviaPaginaActual = 1; // ACT16 (punto 3)
-  let _vistaPreviaTotalPaginas = 0; // ACT16 (punto 3)
+  let _vistaPreviaZoom = 1;
+  let _vistaPreviaPaginaActual = 1;
+  let _vistaPreviaTotalPaginas = 0;
   const ZOOM_VP_MIN = 0.4, ZOOM_VP_MAX = 2.5, ZOOM_VP_PASO = 0.1;
-
   const _escHtml = (s) => String(s == null ? "" : s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 
-  // ---- Dibuja el plan de páginas como tarjetas con proporción de hoja
-  // carta (vertical u horizontal según corresponda), cada una con su
-  // propio encabezado "Página N — vertical/horizontal" para que el salto
-  // de página y el cambio de orientación sean evidentes de un vistazo, sin
-  // necesitar abrir el PDF. El tamaño real en pantalla lo controla el zoom
-  // (ACT16 punto 2, ver _aplicarZoomVistaPrevia) — aquí sólo se fija el
-  // ancho "100%" de referencia. ----
   function _renderPlanVistaPreviaHTML(plan) {
     const paginas = plan.paginas;
     if (!paginas.length) {
@@ -1891,8 +1749,6 @@ function SNSP_renderMorbilidadModulePage(opts) {
               <div style="font-size:9px; white-space:pre-wrap;">${_escHtml(b.texto)}</div>
             </div>`;
         }
-        // seccion / seccion-imagen / seccion-tabla: título (+ nota) +
-        // gráfica real (si aplica) + tabla real (si aplica)
         const notaHtml = b.nota ? `<div style="font-size:8px; font-style:italic; color:#555; margin:-2px 0 4px;">${_escHtml(b.nota)}</div>` : "";
         const imgHtml = b.imagen
           ? `<img src="${b.imagen.dataUrl}" style="display:block; margin:4px auto; max-width:100%; height:auto;" alt="${_escHtml(b.titulo)}">`
@@ -1925,10 +1781,6 @@ function SNSP_renderMorbilidadModulePage(opts) {
     }).join("");
   }
 
-  // ---- ACT16 punto 2: zoom de la Vista previa — escala TODO el conjunto
-  // de páginas con un solo transform (un único factor, no por página) para
-  // que "Ajustar a ancho" sea un cálculo simple y todas las páginas
-  // conserven la misma proporción entre sí. ----
   function _aplicarZoomVistaPrevia() {
     const wrap = document.getElementById("morb-vp-paginas-wrap");
     if (wrap) { wrap.style.transform = `scale(${_vistaPreviaZoom})`; wrap.style.transformOrigin = "top center"; }
@@ -1955,11 +1807,6 @@ function SNSP_renderMorbilidadModulePage(opts) {
       }
     });
   }
-
-  // ---- ACT16 punto 3: navegación "Anterior | Página X de Y | Siguiente"
-  // — hace scroll dentro del lienzo (#morb-pdf-vista-previa-resumen) hasta
-  // la página pedida; los botones fijos (fuera del área con scroll, ver
-  // CSS .morb-vp-acciones) siguen siempre visibles mientras se navega. ----
   function _actualizarIndicadorPaginaVistaPrevia() {
     if (vpPaginaIndicador) vpPaginaIndicador.textContent = `Página ${_vistaPreviaTotalPaginas ? _vistaPreviaPaginaActual : 0} de ${_vistaPreviaTotalPaginas}`;
     if (btnVpPaginaAnterior) btnVpPaginaAnterior.disabled = _vistaPreviaPaginaActual <= 1;
@@ -1975,10 +1822,6 @@ function SNSP_renderMorbilidadModulePage(opts) {
   if (btnVpPaginaAnterior) btnVpPaginaAnterior.addEventListener("click", () => _irAPaginaVistaPrevia(_vistaPreviaPaginaActual - 1));
   if (btnVpPaginaSiguiente) btnVpPaginaSiguiente.addEventListener("click", () => _irAPaginaVistaPrevia(_vistaPreviaPaginaActual + 1));
 
-  // ---- Arma y muestra la Vista previa (paso 2) a partir de las secciones
-  // elegidas — un solo punto de entrada usado por el submit del formulario,
-  // para que el zoom/paginación siempre arranquen en un estado limpio
-  // (100%, página 1) cada vez que se genera una vista previa nueva. ----
   function _mostrarVistaPrevia(seccionesElegidas, observaciones) {
     const plan = _construirPlanReportePDF(seccionesElegidas, observaciones);
     _vistaPreviaTotalPaginas = plan.paginas.length;
@@ -1992,7 +1835,6 @@ function SNSP_renderMorbilidadModulePage(opts) {
       if (modalBox) modalBox.classList.add("is-vista-previa-activa");
     }
   }
-
   function _mostrarPasoFormularioPdf() {
     if (formPdf) formPdf.hidden = false;
     if (vistaPreviaPdf) vistaPreviaPdf.hidden = true;
@@ -2023,9 +1865,6 @@ function SNSP_renderMorbilidadModulePage(opts) {
       _checksSeccionesPdf().forEach((chk) => { chk.checked = false; });
     });
 
-    // Paso 1 → 2: el submit del formulario ya NO genera el PDF — valida y
-    // arma la Vista previa. El PDF real sólo se genera al confirmar en el
-    // paso 2 (botón "Generar PDF" de la vista previa).
     formPdf.addEventListener("submit", (e) => {
       e.preventDefault();
       const seccionesElegidas = _checksSeccionesPdf().filter((c) => c.checked).map((c) => c.value);
@@ -2044,9 +1883,7 @@ function SNSP_renderMorbilidadModulePage(opts) {
 
     const btnVolverEditar = document.getElementById("btn-morb-pdf-volver-editar");
     if (btnVolverEditar) {
-      btnVolverEditar.addEventListener("click", () => {
-        _mostrarPasoFormularioPdf();
-      });
+      btnVolverEditar.addEventListener("click", () => { _mostrarPasoFormularioPdf(); });
     }
 
     const btnGenerarFinal = document.getElementById("btn-morb-pdf-generar-final");
@@ -2067,5 +1904,6 @@ function SNSP_renderMorbilidadModulePage(opts) {
     }
   }
 
-  renderTablero();
+  renderTableroH();
+  renderTableroP();
 }
