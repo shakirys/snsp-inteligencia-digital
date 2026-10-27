@@ -14,6 +14,19 @@ identidad visual) se conserva sin romper.
 > Donde un indicador no puede calcularse, la plataforma muestra explícitamente
 > **"Dato pendiente de carga"**, nunca `null`, `undefined`, `NaN` ni un cero simulado.
 
+## Versión 2.7.0 (ACT26 / ACT26b / ACT26c / ACT26c.1, VERSIÓN DE PRUEBAS) — Población histórica SUIVE 2017–2026
+
+> Prototipo para demostración. No publicado en GitHub ni en producción.
+
+- El módulo **Población** ahora tiene dos pestañas: **Población histórica SUIVE 2017–2026** (nueva, abre por defecto) y **Población por localidad 2025** (padrón ASIS, misma lógica que antes). Son fuentes distintas y nunca se mezclan.
+- Sección nueva: filtros Año / Jurisdicción / Municipio (en cascada), 5 KPIs, pirámide interactiva (Hombres izquierda, Mujeres derecha, 11 grupos de la fuente, Absolutos / %), mapa coroplético de los 18 municipios con límites reales (clic = filtrar), evolución 2017–2026, población por jurisdicción y por municipio, y grandes grupos de edad.
+- Datos: `python3 scripts/build_poblacion_historica.py` lee `data/raw/BASE_POBLACION_SUIVE_QRO_2017_2026_PLANA.xlsx` y `data/geo/Municipios_Queretaro_18.topojson`, verifica claves/jurisdicciones contra el GeoJSON y el catálogo Power BI (aborta si no coinciden) y genera `data/real/poblacion_historica_2017_2026.js` y `data/real/geo_municipios_queretaro.js`.
+- Reglas: un año de referencia a la vez (nunca se suman años); valores originales con decimales, redondeo sólo al mostrar; relación por clave CVEGEO, no por nombre; la fuente metodológica de la proyección está pendiente de confirmar y no se atribuye a ninguna institución.
+- **Comparativo poblacional por años (ACT26b):** selector de años múltiple e independiente, barras agrupadas (Total / Mujeres / Hombres) y tabla con diferencia y variación % contra el año seleccionado anterior. Respeta Jurisdicción y Municipio; pirámide y mapa siguen con un solo año. Nunca se suman años. Verificación contra el Excel: `python3 scripts/verificar_comparativo_vs_base.py`.
+- **ACT26c:** barras horizontales por sexo y grupo de edad (sustituyen a la pirámide SUIVE), indicadores de estructura (% mujeres, % hombres, 65 y más), ranking municipal 5 más / 5 menos poblados y botón «Descargar reporte poblacional» (PDF ejecutivo generado en el navegador con `modules/poblacionReportePDF.js`). Verificación contra el Excel: `python3 scripts/verificar_act26c_vs_base.py`.
+- **ACT26c.1:** mapa con mayor contraste, límites visibles y leyenda sin intervalos ambiguos (tablero y PDF); porcentajes con denominador explícito y tabla plegable de los 11 grupos; aclaración de que el total incluye a mujeres y hombres; PDF de 5 páginas con resumen demográfico (0-14, 15-64, 65+, índices de dependencia y envejecimiento).
+- Pruebas: `node scripts/test_poblacion_historica_jsdom.js` (127 verificaciones) y, con `python3 -m http.server 8099`, `SNSP_BASE=http://127.0.0.1:8099 node playwright_check_act26_poblacion.js docs/capturas_act26c1` (178 verificaciones, incluye descarga y lectura de los PDF). Detalle en `docs/REPORTE_VALIDACION_ACT26c1.md`.
+
 ## Versión 2.5.0 — Morbilidad: panel Casos/Población/Tasa, propuestas de persistencia y seguridad
 
 Se integró a **Morbilidad** un panel nuevo, aditivo a la búsqueda por

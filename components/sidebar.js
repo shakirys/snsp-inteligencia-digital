@@ -20,6 +20,7 @@ function SNSP_renderSidebar(containerId, activeModuleId) {
     mama: "&#10052;",
     dengue: "&#128027;",
     morbilidad: "&#128200;",
+    canal_endemico: "&#128225;",
     poblacion: "&#128101;",
     mortalidad: "&#128683;",
     vacunacion: "&#128137;",

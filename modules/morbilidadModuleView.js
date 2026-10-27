@@ -290,7 +290,10 @@ function SNSP_renderMorbilidadModulePage(opts) {
   }
   function _leerMarcados(menuId) {
     const menu = document.getElementById(menuId);
-    return menu ? Array.from(menu.querySelectorAll("input:checked")).map((i) => i.value) : [];
+    // [value] excluye controles auxiliares sin atributo value propio, como
+    // el checkbox "Seleccionar todos" del filtro Año (ver
+    // inicializarFiltroAnio) — nunca debe colarse como si fuera un año.
+    return menu ? Array.from(menu.querySelectorAll("input[type=checkbox][value]:checked")).map((i) => i.value) : [];
   }
 
   // ---- Año (comparar) — global para ambos bloques. ----
@@ -316,27 +319,53 @@ function SNSP_renderMorbilidadModulePage(opts) {
     const cont = document.getElementById("morb-anio-multiselect");
     if (!menu || !chipsEl || !toggleBtn || !cont) return;
     const valores = catalogosAnio.slice().sort();
-    menu.innerHTML = valores.map((v) => `
+    // "Seleccionar todos" es un checkbox propio, SIN atributo value (por
+    // eso _leerMarcados lo excluye con el selector input[value]) — se
+    // sincroniza con el estado real de los años: marcado sólo cuando los
+    // 4-5 años están todos marcados a la vez, y se desmarca en cuanto se
+    // desmarca cualquiera de ellos. La selección individual y la
+    // multiselección existentes no cambian.
+    menu.innerHTML = `
+      <label class="carga-anio-opcion carga-anio-opcion-todos-check">
+        <input type="checkbox" id="morb-anio-todos-check"> Seleccionar todos
+      </label>
+      ${valores.map((v) => `
       <label class="carga-anio-opcion"><input type="checkbox" value="${v}"> ${v}${v === ANIO_PARCIAL ? " (parcial)" : ""}</label>
-    `).join("");
+    `).join("")}`;
+    const chkTodos = document.getElementById("morb-anio-todos-check");
+    function _checksAnio() { return Array.from(menu.querySelectorAll("input[type=checkbox][value]")); }
+    function _sincronizarTodos() {
+      const chks = _checksAnio();
+      const marcados = chks.filter((c) => c.checked).length;
+      chkTodos.checked = chks.length > 0 && marcados === chks.length;
+      chkTodos.indeterminate = marcados > 0 && marcados < chks.length;
+    }
     function renderChips() {
-      const seleccionados = Array.from(menu.querySelectorAll("input:checked")).map((i) => i.value);
+      const seleccionados = _checksAnio().filter((c) => c.checked).map((i) => i.value);
       chipsEl.innerHTML = seleccionados.length
         ? seleccionados.map((v) => `<span class="carga-anio-chip" data-valor="${v}">${v}${v === ANIO_PARCIAL ? " ⚠" : ""} <button type="button" aria-label="Quitar ${v}">&times;</button></span>`).join("")
         : `<span class="text-muted" style="font-size:var(--fs-body-sm);">${_textoComparativo(valores)} (ningún año marcado)</span>`;
+      _sincronizarTodos();
     }
     renderChips();
     function _refrescarMesSemanaSiAplica() {
       if (typeof _poblarSelectsMesSemanaP === "function") _poblarSelectsMesSemanaP();
     }
-    menu.querySelectorAll("input[type=checkbox]").forEach((chk) => {
+    _checksAnio().forEach((chk) => {
       chk.addEventListener("change", () => { renderChips(); _refrescarMesSemanaSiAplica(); renderTableroH(); renderTableroP(); });
+    });
+    chkTodos.addEventListener("change", () => {
+      _checksAnio().forEach((c) => { c.checked = chkTodos.checked; });
+      renderChips();
+      _refrescarMesSemanaSiAplica();
+      renderTableroH();
+      renderTableroP();
     });
     chipsEl.addEventListener("click", (e) => {
       const btn = e.target.closest("button");
       if (!btn) return;
       const valor = btn.closest(".carga-anio-chip").dataset.valor;
-      const chk = Array.from(menu.querySelectorAll("input[type=checkbox]")).find((i) => i.value === valor);
+      const chk = _checksAnio().find((i) => i.value === valor);
       if (chk) { chk.checked = false; renderChips(); _refrescarMesSemanaSiAplica(); renderTableroH(); renderTableroP(); }
     });
     toggleBtn.addEventListener("click", (e) => { e.stopPropagation(); menu.hidden = !menu.hidden; });
@@ -455,8 +484,16 @@ function SNSP_renderMorbilidadModulePage(opts) {
     return "el estado de Querétaro";
   }
 
-  function _calcularTotalesH(filtrosParaAgregar) {
-    const resultados = svcCarga.agregarConPoblacion(rowsHFiltradas, idxH.municipio, idxH.casos, filtrosParaAgregar, joinCols, poblacionIndex.mapa);
+  // ACT24 fix: antes recibía sólo los filtros y agregaba siempre sobre
+  // TODAS las filas de rowsHFiltradas (sin restringir por año salvo que
+  // hubiera exactamente 1 año marcado) — así, al dejar 2+ años marcados
+  // pero no todos (p. ej. quitar 2022 y dejar 2023-2026), el KPI "Casos
+  // totales" seguía sumando los 5 años completos. Ahora recibe también
+  // las filas YA restringidas a los años seleccionados (rowsBase, ver
+  // rowsHEnAlcanceAnio en renderTableroH) para que siempre coincida con
+  // lo que muestran la gráfica y la tabla.
+  function _calcularTotalesH(filtrosParaAgregar, rowsBase) {
+    const resultados = svcCarga.agregarConPoblacion(rowsBase, idxH.municipio, idxH.casos, filtrosParaAgregar, joinCols, poblacionIndex.mapa);
     let totalCasos = 0, totalPoblacion = 0, hayPoblacion = false;
     resultados.forEach((r) => {
       totalCasos += r.valorCasos;
@@ -655,11 +692,16 @@ function SNSP_renderMorbilidadModulePage(opts) {
     const filtrosParaTotales = aniosSeleccionados.length === 1
       ? filtrosActivos.concat([{ colIdx: idxH.anio, valor: aniosSeleccionados[0] }])
       : filtrosActivos;
-    const filasConsideradas = rowsHFiltradas.filter((r) => {
-      if (!filtrosActivos.every((f) => String(r[f.colIdx] || "").trim() === f.valor)) return false;
-      if (aniosSeleccionados.length === 1) return String(r[idxH.anio] || "").trim() === aniosSeleccionados[0];
-      return true;
-    }).length;
+    // ACT24 fix: filas restringidas a los años ACTUALMENTE seleccionados
+    // (0 marcados = todos los años del catálogo, igual que
+    // _aniosEnAlcance()) — antes sólo se restringía por año cuando había
+    // EXACTAMENTE 1 año marcado, así que dejar 2+ años marcados sin ser
+    // todos (p. ej. quitar 2022) no recortaba nada y el KPI mostraba el
+    // total de los 5 años completos.
+    const rowsHEnAlcanceAnio = rowsHFiltradas.filter((r) => aniosSeleccionados.includes(String(r[idxH.anio] || "").trim()));
+    const filasConsideradas = rowsHEnAlcanceAnio.filter((r) =>
+      filtrosActivos.every((f) => String(r[f.colIdx] || "").trim() === f.valor)
+    ).length;
 
     let agregado;
     if (modoComparativo) {
@@ -779,7 +821,7 @@ function SNSP_renderMorbilidadModulePage(opts) {
         (topNAplicado && totalCategorias > topNAplicado ? ` (Top ${topNAplicado} de ${totalCategorias})` : "");
     }
 
-    const totales = _calcularTotalesH(filtrosParaTotales);
+    const totales = _calcularTotalesH(filtrosActivos, rowsHEnAlcanceAnio);
     let kpiValor, kpiLabel, kpiFootnote;
     if (selMedidaH.value === "poblacion") {
       kpiLabel = "Población relacionada";
@@ -1161,11 +1203,13 @@ function SNSP_renderMorbilidadModulePage(opts) {
     const filtrosParaTotales = aniosSeleccionados.length === 1
       ? filtrosActivos.concat([{ colIdx: idxP.anio, valor: aniosSeleccionados[0] }])
       : filtrosActivos;
-    const filasConsideradas = rowsPFiltradas.filter((r) => {
-      if (!filtrosActivos.every((f) => String(r[f.colIdx] || "").trim() === f.valor)) return false;
-      if (aniosSeleccionados.length === 1) return String(r[idxP.anio] || "").trim() === aniosSeleccionados[0];
-      return true;
-    }).length;
+    // ACT24 fix: mismo problema que en Bloque 1 — restringir siempre a
+    // los años ACTUALMENTE seleccionados (0 marcados = todos), no sólo
+    // cuando hay exactamente 1 año marcado.
+    const rowsPEnAlcanceAnio = rowsPFiltradas.filter((r) => aniosSeleccionados.includes(String(r[idxP.anio] || "").trim()));
+    const filasConsideradas = rowsPEnAlcanceAnio.filter((r) =>
+      filtrosActivos.every((f) => String(r[f.colIdx] || "").trim() === f.valor)
+    ).length;
 
     let agregado;
     if (modoComparativo) {
@@ -1250,11 +1294,9 @@ function SNSP_renderMorbilidadModulePage(opts) {
         (topNPrincipal && totalCategorias > topNPrincipal ? ` (Top ${topNPrincipal} de ${totalCategorias})` : "");
     }
 
-    const totalCasosP = filasConsideradas ? rowsPFiltradas.filter((r) => {
-      if (!filtrosActivos.every((f) => String(r[f.colIdx] || "").trim() === f.valor)) return false;
-      if (aniosSeleccionados.length === 1) return String(r[idxP.anio] || "").trim() === aniosSeleccionados[0];
-      return true;
-    }).reduce((s, r) => s + (parseInt(r[idxP.casos], 10) || 0), 0) : 0;
+    const totalCasosP = filasConsideradas ? rowsPEnAlcanceAnio.filter((r) =>
+      filtrosActivos.every((f) => String(r[f.colIdx] || "").trim() === f.valor)
+    ).reduce((s, r) => s + (parseInt(r[idxP.casos], 10) || 0), 0) : 0;
 
     document.getElementById("kpi-grid-p").innerHTML = [
       { label: "Combinaciones en la base", value: rowsP.length.toLocaleString("es-MX"), accent: "var(--c-vino)", footnote: `${datosP.meta.filas_originales.toLocaleString("es-MX")} filas originales agregadas` },
@@ -1455,34 +1497,420 @@ function SNSP_renderMorbilidadModulePage(opts) {
     mesanio_p: "morb-p-chart-mesanio",
   };
 
+  // -----------------------------------------------------------------------
+  // ACT22 — Rediseño del PDF de Morbilidad (sólo presentación; NINGÚN dato
+  // ni cálculo cambia). Reglas por dimensión:
+  //   - Municipio: SIEMPRE los 18 (nunca Top 10) — ya era así en pantalla,
+  //     se conserva igual.
+  //   - Unidad médica: el reporte SIEMPRE usa Top 10 (antes el PDF copiaba
+  //     el panel en pantalla, que usa Top 20 fijo) — se recalcula aparte,
+  //     sin tocar renderChartUnidadMedica ni el tablero en vivo.
+  //   - Padecimientos: Top 10 cuando no hay un padecimiento específico
+  //     seleccionado; si lo hay, se muestra únicamente esa selección (el
+  //     reporte ya no depende del selector "Mostrar" en pantalla, que
+  //     la usuaria pudo haber cambiado antes de generar el PDF).
+  //   - Jurisdicción/Institución/Grupo de edad/Sexo (ambos bloques):
+  //     pocas categorías → siempre todas (ya era así, se conserva).
+  //   - Tendencia/Comparativo por mes y año (ambos bloques): serie
+  //     temporal completa, nunca Top N (ya era así, se conserva).
+  //   - El total general de cada sección (ver Indicadores) siempre se
+  //     calcula ANTES de cualquier recorte Top N, así que nunca es sólo
+  //     la suma de las categorías mostradas.
+  // -----------------------------------------------------------------------
+  const DIM_EQUIV_H_A_PANORAMA = { municipio: "municipio", jurisdiccion: "jurisdiccion", institucion: "institucion", unidad_medica: "unidadmedica", grupo_edad: "grupoedad", sexo: "sexo" };
+  const DIM_EQUIV_P_A_PANORAMA = { padecimiento: "padecimientos", grupo_edad: "grupoedad_p", sexo: "sexo_p" };
+
+  function _pdfReaggregarCategoriaTopN(rowsFiltradas, dimIdx, idxCasosCol, idxAnioCol, filtrosActivos, aniosSeleccionados, modoComparativo, topN) {
+    if (modoComparativo) {
+      let resultados = svcCarga.agregarComparativo(rowsFiltradas, dimIdx, idxCasosCol, filtrosActivos, idxAnioCol, aniosSeleccionados);
+      const totalCategorias = resultados.length;
+      if (topN) resultados = resultados.slice(0, topN);
+      return {
+        categorias: resultados.map((r) => r.categoria),
+        valores: null,
+        seriesPorAnio: aniosSeleccionados.map((y) => ({ label: y, data: resultados.map((r) => r.valores[y] || 0) })),
+        totalCategorias,
+      };
+    }
+    const filtrosConAnio = aniosSeleccionados.length === 1 ? filtrosActivos.concat([{ colIdx: idxAnioCol, valor: aniosSeleccionados[0] }]) : filtrosActivos;
+    let resultados = svcCarga.agregar(rowsFiltradas, dimIdx, idxCasosCol, filtrosConAnio);
+    const totalCategorias = resultados.length;
+    if (topN) resultados = resultados.slice(0, topN);
+    return { categorias: resultados.map((r) => r.categoria), valores: resultados.map((r) => r.valor), seriesPorAnio: null, totalCategorias };
+  }
+
+  function _tablaDesdeCategorias(r, modoComparativo, aniosSeleccionados) {
+    if (modoComparativo) {
+      const head = ["#", "Categoría"].concat(aniosSeleccionados.map((y) => `Casos ${y}`));
+      const hayDiferencia = aniosSeleccionados.length === 2;
+      if (hayDiferencia) head.push("Diferencia", "Variación %");
+      const rows = r.categorias.map((cat, i) => {
+        const vals = aniosSeleccionados.map((y, yi) => (r.seriesPorAnio[yi] && r.seriesPorAnio[yi].data[i]) || 0);
+        const fila = [String(i + 1), cat].concat(vals.map((v) => Math.round(v).toLocaleString("es-MX")));
+        if (hayDiferencia) {
+          const diff = vals[1] - vals[0];
+          const variacion = vals[0] > 0 ? (diff / vals[0]) * 100 : null;
+          const signo = diff > 0 ? "+" : "";
+          fila.push(`${signo}${diff.toLocaleString("es-MX")}`, variacion === null ? "—" : (variacion > 0 ? "+" : "") + variacion.toFixed(1) + "%");
+        }
+        return fila;
+      });
+      return { head, rows };
+    }
+    return { head: ["#", "Categoría", "Casos"], rows: r.categorias.map((cat, i) => [String(i + 1), cat, Math.round(r.valores[i]).toLocaleString("es-MX")]) };
+  }
+
+  // Construye y renderiza una gráfica de barras INDEPENDIENTE del tablero
+  // en pantalla (en un <canvas> fuera de la vista, nunca visible para la
+  // usuaria) — sólo para las 2 secciones del reporte (Unidad médica,
+  // Padecimientos) cuyo Top N debe ser fijo (10) sin importar lo que el
+  // selector "Mostrar" tenga elegido en ese momento en el tablero. No
+  // toca renderChartUnidadMedica, renderChartPadecimientos, ni ningún
+  // <canvas> real del tablero.
+  function _pdfRenderGraficaIndependiente(categorias, datos, modoComparativo, tituloPartes, opts) {
+    if (!categorias.length) return null;
+    opts = opts || {};
+    const horizontal = opts.horizontal !== false; // por defecto horizontal (igual que antes)
+    const anchoCanvas = opts.anchoCanvas || 920;
+    const id = `morb-pdf-tmp-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    const cont = document.createElement("div");
+    cont.id = id + "-wrap";
+    cont.style.cssText = `position:fixed; left:-9999px; top:0; width:${anchoCanvas}px;`;
+    const canvas = document.createElement("canvas");
+    canvas.id = id;
+    cont.appendChild(canvas);
+    document.body.appendChild(cont);
+    // ACT22 (corrección) — IMPORTANTE: a diferencia del panel en pantalla
+    // (que crece sin límite para permitir scroll), el lienzo del PDF debe
+    // caber en una página: si se le deja crecer libremente con
+    // _ajustarAlturaBarra (pensada para scroll), el resultado queda muy
+    // alto y angosto, y _capturarImagenGrafica lo encoge completo para que
+    // quepa en el alto disponible — dejando la gráfica angosta con
+    // márgenes blancos enormes a los lados (el defecto original que se
+    // quería corregir). Por eso aquí se usa una altura EXPLÍCITA
+    // (opts.altoCanvas, calculada por _decidirDisenoSeccionCategorica para
+    // que el lienzo ya tenga la proporción ancho:alto de la página de
+    // destino) en vez de dejar que la altura crezca con el contenido.
+    if (opts.altoCanvas) {
+      cont.style.height = `${opts.altoCanvas}px`;
+    } else {
+      _ajustarAlturaBarra(cont.id, categorias, modoComparativo, (datos && datos.length) || 1);
+    }
+    const barraOpts = Object.assign({ horizontal, wrapAt: 28, tituloPartes }, _morbBarraOpts(modoComparativo));
+    // ACT22 (corrección) — Tendencia por año/mes es una gráfica de LÍNEA
+    // (SNSP_renderLineChart), no de barras: necesita su propio constructor,
+    // pero el resto del mecanismo (lienzo propio, tamaño explícito, pintado
+    // síncrono antes de capturar) es idéntico.
+    const inst = opts.tipo === "linea"
+      ? SNSP_renderLineChart(id, categorias, datos, Object.assign({ tituloPartes }, MORB_OPTS_ETIQUETA_MENSUAL))
+      : (modoComparativo
+        ? SNSP_renderGroupedBarChart(id, categorias, datos, "Casos", barraOpts)
+        : SNSP_renderBarChart(id, categorias, datos, "Casos", barraOpts));
+    if (inst) {
+      // ACT22 (corrección) — IMPORTANTE: Chart.js dibuja su primer cuadro de
+      // forma asíncrona (vía requestAnimationFrame), así que ni crear el
+      // Chart ni llamar a .update("none") garantizan que las barras ya
+      // estén pintadas en el <canvas> cuando esta misma función retorna.
+      // Capturar el canvas demasiado pronto producía una imagen en blanco
+      // en el PDF (se veía el rectángulo pero sin barras ni etiquetas).
+      // inst.draw() es el método de bajo nivel de Chart.js: pinta de
+      // inmediato, sin pasar por el Animator ni por requestAnimationFrame,
+      // así que al volver de esta función el <canvas> ya tiene el dibujo
+      // completo y _capturarImagenGrafica puede leerlo de forma confiable.
+      inst.options.animation = false;
+      inst.resize();
+      inst.update("none");
+      inst.draw();
+    }
+    return { chartInst: inst, limpiar: () => { if (inst) inst.destroy(); if (cont.parentNode) cont.parentNode.removeChild(cont); } };
+  }
+
+  // ACT22 (corrección) — decide el "diseño" (orientación de hoja + tamaño
+  // del lienzo fuera de pantalla) de una sección categórica del PDF a
+  // partir únicamente de su contenido (número de categorías / longitud de
+  // las etiquetas), nunca de dónde vino el dato. Municipio SIEMPRE usa
+  // hoja apaisada (regla explícita e incondicional); el resto decide según
+  // tenga muchas categorías o nombres largos.
+  //
+  // El lienzo se dimensiona con la MISMA proporción ancho:alto que la caja
+  // de la página donde va a colocarse la imagen (ver _construirPlanReportePDF:
+  // página completa menos márgenes, con el tope "imagen grande" que se usa
+  // cuando la gráfica ocupa una página propia). Así, al capturarla,
+  // _capturarImagenGrafica no necesita encogerla para que quepa — ya cabe
+  // "justa" — y la gráfica aprovecha prácticamente todo el ancho y alto
+  // útil de la hoja en vez de quedar angosta con márgenes en blanco.
+  function _decidirDisenoSeccionCategorica(clave, categorias, modoComparativo, nSeries) {
+    const n = (categorias || []).length;
+    const maxLen = (categorias || []).reduce((m, c) => Math.max(m, String(c == null ? "" : c).length), 0);
+    const landscape = clave === "municipio" || n > 10 || maxLen > 18;
+
+    const margenX = 40;
+    const anchoPagina = landscape ? 792 : 612;
+    const altoPagina = landscape ? 612 : 792;
+    const anchoDisponible = anchoPagina - margenX * 2;
+    const topeImagenGrande = Math.round((altoPagina - margenX * 2) * 0.92);
+    const RATIO = anchoDisponible / topeImagenGrande; // ancho:alto de la caja de destino
+
+    // Alto que necesitan, de verdad, "n" categorías para que cada una (y su
+    // etiqueta, posiblemente envuelta en varias líneas) quede legible —
+    // misma fórmula que usa el panel en pantalla (_alturaCategoriaBarras),
+    // pero aquí fija el PISO del lienzo del PDF en vez de dejarlo crecer
+    // sin límite.
+    const alturaPorCategoria = _alturaCategoriaBarras(!!modoComparativo, nSeries || 1);
+    const altoNecesario = Math.max(260, n * alturaPorCategoria + 90);
+
+    const FACTOR_NITIDEZ = 1.6; // resolución extra para que el texto no se vea pixelado
+    let altoCanvas = Math.round(altoNecesario * FACTOR_NITIDEZ);
+    let anchoCanvas = Math.round(altoCanvas * RATIO);
+    // Piso/techo razonables de resolución.
+    anchoCanvas = Math.max(900, Math.min(2200, anchoCanvas));
+    altoCanvas = Math.round(anchoCanvas / RATIO);
+
+    return { landscape, anchoCanvas, altoCanvas };
+  }
+
+  // Extrae categorías/datos de una instancia de Chart.js YA renderizada en
+  // pantalla (sin volver a calcular nada): se usa para poder re-dibujar esa
+  // misma información, con esos mismos valores, en un lienzo más grande y
+  // controlado fuera de pantalla sólo para la captura del PDF.
+  function _datosDesdeChartInstance(chartInst, modoComparativo) {
+    if (!chartInst || !chartInst.data) return null;
+    const categorias = (chartInst.data.labels || []).map((l) => (Array.isArray(l) ? l.join(" ") : String(l)));
+    const datasets = chartInst.data.datasets || [];
+    if (modoComparativo) {
+      return { categorias, datos: datasets.map((ds) => ({ label: ds.label, data: (ds.data || []).slice() })) };
+    }
+    return { categorias, datos: (datasets[0] && datasets[0].data) ? datasets[0].data.slice() : [] };
+  }
+
+  function _bloqueDeSeccion(clave) {
+    return (clave.endsWith("_p") || clave === "padecimientos") ? 2 : 1;
+  }
+
   function _construirSeccionesPdfDatos(seccionesElegidas) {
     const seccionesDatos = [];
-    seccionesElegidas.forEach((clave) => {
+    const limpiezas = [];
+    let elegidas = seccionesElegidas.slice();
+
+    // Elimina duplicados: si "Gráfica y tabla principal" está incluida y su
+    // dimensión activa ("Por") coincide con una sección de panorama
+    // también incluida, se omite la de panorama (misma información dos
+    // veces) y se deja constancia en una nota de la principal.
+    let notaDedupH = null, notaDedupP = null;
+    if (elegidas.includes("principal_h") && selDimH) {
+      const equivalente = DIM_EQUIV_H_A_PANORAMA[selDimH.value];
+      if (equivalente && elegidas.includes(equivalente)) {
+        elegidas = elegidas.filter((c) => c !== equivalente);
+        notaDedupH = `Se omitió la sección de panorama "${dimLabelMapH[selDimH.value]}" por duplicar esta misma gráfica y tabla (la vista "Por" activa ya es ${dimLabelMapH[selDimH.value]}).`;
+      }
+    }
+    if (elegidas.includes("principal_p") && selDimP) {
+      const equivalente = DIM_EQUIV_P_A_PANORAMA[selDimP.value];
+      if (equivalente && elegidas.includes(equivalente)) {
+        elegidas = elegidas.filter((c) => c !== equivalente);
+        notaDedupP = `Se omitió la sección de panorama "${dimLabelMapP[selDimP.value]}" por duplicar esta misma gráfica y tabla (la vista "Por" activa ya es ${dimLabelMapP[selDimP.value]}).`;
+      }
+    }
+
+    // ACT22 (corrección) — "Tendencia por año/mes" (línea) y "Comparativo
+    // por mes y año" (barras) presentan esencialmente la misma información
+    // mensual. Si ambas están marcadas (son el valor por defecto en los dos
+    // bloques), se conserva únicamente "Tendencia por año/mes" —comunica
+    // mejor la evolución mensual— y se deja constancia en su nota.
+    let notaDedupTendH = null, notaDedupTendP = null;
+    if (elegidas.includes("tendencia") && elegidas.includes("mesanio")) {
+      elegidas = elegidas.filter((c) => c !== "mesanio");
+      notaDedupTendH = 'Se omitió la sección "Comparativo por mes y año" (Bloque 1) por repetir la misma información mensual que esta gráfica de tendencia.';
+    }
+    if (elegidas.includes("tendencia_p") && elegidas.includes("mesanio_p")) {
+      elegidas = elegidas.filter((c) => c !== "mesanio_p");
+      notaDedupTendP = 'Se omitió la sección "Comparativo por mes y año" (Bloque 2) por repetir la misma información mensual que esta gráfica de tendencia.';
+    }
+
+    // ACT22 (corrección) — secciones categóricas cuyo panel en pantalla es
+    // SIEMPRE una gráfica de barras (nunca dona): pueden re-dibujarse en un
+    // lienzo propio, más grande y con el ancho que su contenido necesite,
+    // sin recalcular ningún dato (se reutilizan los mismos labels/valores
+    // ya calculados por el tablero en pantalla). Jurisdicción sólo entra
+    // aquí en modo comparativo (en modo de un solo año su panel es una
+    // dona, no una barra, y se deja intacta).
+    const CLAVES_RECATEGORICAS = { municipio: true, institucion: true, grupoedad: true, sexo: true, grupoedad_p: true, sexo_p: true, jurisdiccion: "solo_comparativo" };
+
+    elegidas.forEach((clave) => {
       if (clave === "kpi_h") {
-        seccionesDatos.push({ clave, titulo: "Bloque 1 — Indicadores", tabla: _morbPdfTablaKPI("kpi-grid-h"), chartInst: null });
+        seccionesDatos.push({ clave, titulo: "Bloque 1 — Indicadores (morbilidad general)", tabla: _morbPdfTablaKPI("kpi-grid-h"), chartInst: null });
       } else if (clave === "kpi_p") {
-        seccionesDatos.push({ clave, titulo: "Bloque 2 — Indicadores", tabla: _morbPdfTablaKPI("kpi-grid-p"), chartInst: null });
+        seccionesDatos.push({ clave, titulo: "Bloque 2 — Indicadores (padecimiento[s])", tabla: _morbPdfTablaKPI("kpi-grid-p"), chartInst: null });
       } else if (clave === "principal_h") {
-        seccionesDatos.push({ clave, titulo: "Bloque 1 — Gráfica y tabla principal", tabla: _morbPdfTablaPrincipal("#morb-h-tabla-head th", "#morb-h-tabla-body tr"), chartInst: chartH });
+        // ACT22 (corrección) — "Gráfica y tabla principal" es la sección que
+        // MÁS a menudo termina mostrando Municipio (es su "Por" por
+        // defecto): si no se le aplica el mismo rediseño que a la sección
+        // dedicada de Municipio, la regla "Municipio siempre apaisado y
+        // legible" queda incumplida justo cuando más importa (selección
+        // por defecto). Se re-dibuja con el mismo mecanismo que las demás
+        // secciones categóricas, reutilizando los datos ya calculados de
+        // chartH, sin recalcular nada.
+        const tabla = _morbPdfTablaPrincipal("#morb-h-tabla-head th", "#morb-h-tabla-body tr");
+        let chartInstParaImagen = chartH;
+        let orientForzada = null;
+        const aniosSelPrincipalH = _aniosEnAlcance();
+        const modoComparativoPrincipalH = aniosSelPrincipalH.length >= 2;
+        const dpPrincipalH = _datosDesdeChartInstance(chartH, modoComparativoPrincipalH);
+        if (dpPrincipalH && dpPrincipalH.categorias.length) {
+          const claveDisenoH = (selDimH && DIM_EQUIV_H_A_PANORAMA[selDimH.value]) || "generica_h";
+          const disenoH = _decidirDisenoSeccionCategorica(claveDisenoH, dpPrincipalH.categorias, modoComparativoPrincipalH, aniosSelPrincipalH.length);
+          const tituloPartesH = { indicador: nombreMedidaH(), dimension: dimLabelMapH[selDimH ? selDimH.value : "municipio"], padecimiento: null, lugar: lugarTextoH(), periodo: _periodoTituloTextoH(aniosSelPrincipalH, modoComparativoPrincipalH) };
+          const gH = _pdfRenderGraficaIndependiente(dpPrincipalH.categorias, dpPrincipalH.datos, modoComparativoPrincipalH, tituloPartesH, { horizontal: true, anchoCanvas: disenoH.anchoCanvas, altoCanvas: disenoH.altoCanvas });
+          if (gH) { chartInstParaImagen = gH.chartInst; limpiezas.push(gH.limpiar); if (disenoH.landscape) orientForzada = "landscape"; }
+        }
+        const esMunicipioPrincipalH = !!(selDimH && selDimH.value === "municipio");
+        if (esMunicipioPrincipalH) orientForzada = "landscape"; // SIEMPRE para Municipio, incondicional.
+        // Nota: notaDedupH se sigue calculando arriba (la deduplicación en
+        // sí no cambia) pero, a pedido explícito, ya no se muestra en el
+        // reporte — es información interna, no para el PDF final.
+        // ACT24: Municipio es la ÚNICA excepción que puede usar una página
+        // adicional sólo para su tabla cuando gráfica+tabla no caben
+        // juntas (ver permiteTablaSiNoCabe en _construirPlanReportePDF) —
+        // aquí "Gráfica y tabla principal" hereda esa excepción
+        // únicamente cuando su "Por" activo es, de hecho, Municipio.
+        seccionesDatos.push({ clave, titulo: "Bloque 1 — Gráfica y tabla principal", tabla, chartInst: chartInstParaImagen, nota: null, orientForzada, permiteTablaSiNoCabe: esMunicipioPrincipalH });
       } else if (clave === "principal_p") {
-        seccionesDatos.push({ clave, titulo: "Bloque 2 — Gráfica y tabla principal", tabla: _morbPdfTablaPrincipal("#morb-p-tabla-head th", "#morb-p-tabla-body tr"), chartInst: chartP });
+        const tabla = _morbPdfTablaPrincipal("#morb-p-tabla-head th", "#morb-p-tabla-body tr");
+        let chartInstParaImagen = chartP;
+        let orientForzada = null;
+        const aniosSelPrincipalP = _aniosEnAlcance();
+        const modoComparativoPrincipalP = aniosSelPrincipalP.length >= 2;
+        const dpPrincipalP = _datosDesdeChartInstance(chartP, modoComparativoPrincipalP);
+        if (dpPrincipalP && dpPrincipalP.categorias.length) {
+          const claveDisenoP = (selDimP && DIM_EQUIV_P_A_PANORAMA[selDimP.value]) || "generica_p";
+          const disenoP = _decidirDisenoSeccionCategorica(claveDisenoP, dpPrincipalP.categorias, modoComparativoPrincipalP, aniosSelPrincipalP.length);
+          const tituloPartesP = { indicador: "Casos", dimension: dimLabelMapP[selDimP ? selDimP.value : "padecimiento"], padecimiento: _padecimientoTitulo(), lugar: "el estado de Querétaro", periodo: _periodoTituloTextoP(aniosSelPrincipalP, modoComparativoPrincipalP) };
+          const gP = _pdfRenderGraficaIndependiente(dpPrincipalP.categorias, dpPrincipalP.datos, modoComparativoPrincipalP, tituloPartesP, { horizontal: true, anchoCanvas: disenoP.anchoCanvas, altoCanvas: disenoP.altoCanvas });
+          if (gP) { chartInstParaImagen = gP.chartInst; limpiezas.push(gP.limpiar); if (disenoP.landscape) orientForzada = "landscape"; }
+        }
+        // Nota: notaDedupP se sigue calculando arriba (la deduplicación en
+        // sí no cambia) pero, a pedido explícito, ya no se muestra en el
+        // reporte — es información interna, no para el PDF final.
+        seccionesDatos.push({ clave, titulo: "Bloque 2 — Gráfica y tabla principal", tabla, chartInst: chartInstParaImagen, nota: null, orientForzada });
+      } else if (clave === "unidadmedica") {
+        const filtrosActivos = _filtrosActivosH();
+        const aniosSeleccionados = _aniosEnAlcance();
+        const modoComparativo = aniosSeleccionados.length >= 2;
+        const r = _pdfReaggregarCategoriaTopN(rowsHFiltradas, idxH.unidad_medica, idxH.casos, idxH.anio, filtrosActivos, aniosSeleccionados, modoComparativo, 10);
+        const tituloPartes = { indicador: "Casos", dimension: "unidad médica", padecimiento: null, lugar: lugarTextoH(), periodo: _periodoTituloTextoH(aniosSeleccionados, modoComparativo) };
+        const diseno = _decidirDisenoSeccionCategorica(clave, r.categorias, modoComparativo, aniosSeleccionados.length);
+        const g = _pdfRenderGraficaIndependiente(r.categorias, modoComparativo ? r.seriesPorAnio : r.valores, modoComparativo, tituloPartes, { horizontal: true, anchoCanvas: diseno.anchoCanvas, altoCanvas: diseno.altoCanvas });
+        const nota = r.totalCategorias > 10
+          ? `Top 10 de ${r.totalCategorias} unidades médicas con casos en la selección vigente — el total general (ver Indicadores) corresponde a TODAS las unidades médicas, no sólo a estas 10.`
+          : `Todas las unidades médicas con casos en la selección vigente (${r.totalCategorias}).`;
+        seccionesDatos.push({ clave, titulo: "Bloque 1 — Casos por unidad médica (Top 10)", tabla: _tablaDesdeCategorias(r, modoComparativo, aniosSeleccionados), chartInst: g && g.chartInst, nota, orientForzada: diseno.landscape ? "landscape" : null });
+        if (g) limpiezas.push(g.limpiar);
+      } else if (clave === "padecimientos") {
+        const filtrosActivos = _filtrosActivosP();
+        const aniosSeleccionados = _aniosEnAlcance();
+        const modoComparativo = aniosSeleccionados.length >= 2;
+        const topN = seleccionPadecimiento ? null : 10;
+        const r = _pdfReaggregarCategoriaTopN(rowsPFiltradas, idxP.padecimiento, idxP.casos, idxP.anio, filtrosActivos, aniosSeleccionados, modoComparativo, topN);
+        const tituloPartes = { indicador: "Casos", dimension: "padecimiento", padecimiento: _padecimientoTitulo(), lugar: "el estado de Querétaro", periodo: _periodoTituloTextoP(aniosSeleccionados, modoComparativo) };
+        const diseno = _decidirDisenoSeccionCategorica(clave, r.categorias, modoComparativo, aniosSeleccionados.length);
+        const g = _pdfRenderGraficaIndependiente(r.categorias, modoComparativo ? r.seriesPorAnio : r.valores, modoComparativo, tituloPartes, { horizontal: true, anchoCanvas: diseno.anchoCanvas, altoCanvas: diseno.altoCanvas });
+        const nota = seleccionPadecimiento
+          ? `Padecimiento específico seleccionado: se muestra únicamente "${_padecimientoTitulo()}".`
+          : (topN && r.totalCategorias > topN
+            ? `Top 10 de ${r.totalCategorias} padecimientos en la selección vigente — el total general (ver Indicadores) corresponde a TODOS los padecimientos, no sólo a estos 10.`
+            : `Todos los padecimientos en la selección vigente (${r.totalCategorias}).`);
+        seccionesDatos.push({ clave, titulo: seleccionPadecimiento ? "Bloque 2 — Padecimiento seleccionado" : "Bloque 2 — Padecimientos (Top 10)", tabla: _tablaDesdeCategorias(r, modoComparativo, aniosSeleccionados), chartInst: g && g.chartInst, nota, orientForzada: diseno.landscape ? "landscape" : null });
+        if (g) limpiezas.push(g.limpiar);
       } else {
         const def = MORB_PDF_SECCIONES.find((s) => s.valor === clave);
         const canvasId = MORB_PDF_CANVAS_ID[clave];
         const inst = canvasId ? panoramaCharts[canvasId] : null;
         const tabla = _tablaDesdeChartInstance(inst, def ? def.categoriaLabel : "Categoría");
         let nota = null;
-        if (clave === "municipio") {
-          const conteo = _contarCategoriasConDatos(inst);
-          if (conteo && conteo.conDatos < conteo.total) {
-            nota = `${conteo.conDatos} de ${conteo.total} municipios con casos en el periodo — se muestran los ${conteo.total} para poder comparar años (0 = sin casos registrados)`;
+        let chartInstParaImagen = inst;
+        let orientForzada = null;
+
+        // ACT22 (corrección) — en vez de capturar la imagen del panel chico
+        // tal cual se ve en el tablero (lo que deja gráficas diminutas
+        // rodeadas de espacio en blanco cuando hay pocas categorías o
+        // nombres largos), se re-dibuja la MISMA información (mismos
+        // labels/valores, sin recalcular nada) en un lienzo propio cuyo
+        // ancho y orientación de hoja se decide según el contenido.
+        const aniosSeleccionados = _aniosEnAlcance();
+        const modoComparativo = aniosSeleccionados.length >= 2;
+        const elegibleRecategorica = CLAVES_RECATEGORICAS[clave] === true
+          || (CLAVES_RECATEGORICAS[clave] === "solo_comparativo" && modoComparativo);
+        const CLAVES_TIEMPO_LINEA = { tendencia: true, tendencia_p: true };
+        const CLAVES_TIEMPO_BARRA = { mesanio: true, mesanio_p: true };
+        if (elegibleRecategorica) {
+          const dp = _datosDesdeChartInstance(inst, modoComparativo);
+          if (dp && dp.categorias.length) {
+            const diseno = _decidirDisenoSeccionCategorica(clave, dp.categorias, modoComparativo, aniosSeleccionados.length);
+            const tituloPartes = {
+              indicador: "Casos",
+              dimension: def ? def.categoriaLabel : clave,
+              padecimiento: null,
+              lugar: lugarTextoH(),
+              periodo: _periodoTituloTextoH(aniosSeleccionados, modoComparativo),
+            };
+            const g = _pdfRenderGraficaIndependiente(dp.categorias, dp.datos, modoComparativo, tituloPartes, { horizontal: true, anchoCanvas: diseno.anchoCanvas, altoCanvas: diseno.altoCanvas });
+            if (g) {
+              chartInstParaImagen = g.chartInst;
+              limpiezas.push(g.limpiar);
+              if (diseno.landscape) orientForzada = "landscape";
+            }
+          }
+        } else if (CLAVES_TIEMPO_LINEA[clave] || CLAVES_TIEMPO_BARRA[clave]) {
+          // ACT22 (corrección) — Tendencia/Comparativo por mes y año viven en
+          // el Bloque 2 (pestaña que puede estar oculta cuando se genera el
+          // PDF desde el Bloque 1, o viceversa): capturar el <canvas> EN
+          // PANTALLA directamente podía salir en blanco si su pestaña no
+          // estaba activa en ese momento (el panel oculto puede quedar con
+          // ancho/alto 0). Igual que las demás secciones, se re-dibuja la
+          // MISMA información (sin recalcular nada) en un lienzo propio,
+          // siempre visible para Chart.js aunque la pestaña real esté oculta.
+          const dp = _datosDesdeChartInstance(inst, true); // las series mensuales siempre vienen como arreglo de series (una por año), haya 1 año o varios
+          if (dp && dp.categorias.length) {
+            const tituloPartes = {
+              indicador: "Casos",
+              dimension: "mes",
+              padecimiento: null,
+              lugar: lugarTextoH(),
+              periodo: _periodoTituloTextoH(aniosSeleccionados, modoComparativo),
+            };
+            const g = _pdfRenderGraficaIndependiente(dp.categorias, dp.datos, true, tituloPartes, {
+              tipo: CLAVES_TIEMPO_LINEA[clave] ? "linea" : "barra",
+              horizontal: false,
+              anchoCanvas: 1100,
+              altoCanvas: 560,
+            });
+            if (g) { chartInstParaImagen = g.chartInst; limpiezas.push(g.limpiar); }
           }
         }
-        if (clave === "unidadmedica") nota = "Se muestran las unidades médicas de mayor valor en la selección vigente (383 unidades médicas en total en la base).";
-        if (def) seccionesDatos.push({ clave, titulo: def.titulo, tabla, chartInst: inst, nota });
+
+        if (clave === "municipio") {
+          const conteo = _contarCategoriasConDatos(inst);
+          nota = (conteo && conteo.conDatos < conteo.total)
+            ? `${conteo.conDatos} de ${conteo.total} municipios con casos en el periodo — se muestran los ${conteo.total} (todos, nunca Top 10) para poder comparar años (0 = sin casos registrados).`
+            : `Los ${conteo ? conteo.total : 18} municipios de Querétaro, siempre completos (nunca Top 10). Hoja en orientación horizontal/apaisada para que las 18 barras y sus etiquetas se lean con claridad.`;
+          orientForzada = "landscape"; // SIEMPRE, incondicional — no depende de si se pudo redibujar la gráfica.
+        }
+        // Nota: notaDedupTendH/notaDedupTendP se siguen calculando arriba
+        // (la deduplicación de Tendencia/Comparativo en sí no cambia) pero,
+        // a pedido explícito, ya no se muestran en el reporte — son
+        // información interna, no para el PDF final.
+
+        // ACT24 — "Municipio" es la ÚNICA sección (junto con "Gráfica y
+        // tabla principal" cuando su "Por" es Municipio, ver arriba) que
+        // puede usar una página adicional sólo para su tabla cuando
+        // gráfica+tabla no caben juntas; todas las demás, si no caben
+        // juntas, se quedan únicamente con la gráfica grande (ya con sus
+        // valores legibles) y no agregan una página sólo para repetir en
+        // tabla lo que la gráfica ya muestra.
+        if (def) seccionesDatos.push({ clave, titulo: def.titulo, tabla, chartInst: chartInstParaImagen, nota, orientForzada, permiteTablaSiNoCabe: clave === "municipio" });
       }
     });
-    return seccionesDatos;
+    return { seccionesDatos, limpiezas };
   }
 
   function _construirPlanReportePDF(seccionesElegidas, observaciones) {
@@ -1492,7 +1920,7 @@ function SNSP_renderMorbilidadModulePage(opts) {
     const periodoPdf = _periodoCompletoTextoH(aniosSeleccionados, modoComparativo);
     const fechaGeneracion = new Date().toLocaleString("es-MX");
     const fuenteTexto = sourceLabel ? sourceLabel.textContent : "";
-    const seccionesDatos = _construirSeccionesPdfDatos(seccionesElegidas);
+    const { seccionesDatos, limpiezas } = _construirSeccionesPdfDatos(seccionesElegidas);
 
     const paginas = [];
     let orientationActual = "portrait";
@@ -1528,10 +1956,36 @@ function SNSP_renderMorbilidadModulePage(opts) {
     const ALTO_FILA_ESTIM = 16;
     const ALTO_TITULO = 20;
     const ALTO_NOTA = 14;
+    const ALTO_DIVISOR_BLOQUE = 34;
+
+    // ACT22 — separación muy clara entre Bloque 1 (morbilidad general,
+    // TODAS las causas) y Bloque 2 (padecimiento[s] seleccionado[s]): un
+    // separador visual explícito cada vez que el reporte pasa de un
+    // bloque al otro, para que el total de Bloque 1 nunca se confunda con
+    // cifras de un padecimiento específico de Bloque 2.
+    let bloqueActual = null;
+    const TEXTO_DIVISOR = {
+      1: "BLOQUE 1 — MORBILIDAD GENERAL: cifras de TODAS las causas en el periodo. No corresponden a ningún padecimiento específico, aunque el Bloque 2 de este mismo reporte tenga una selección aplicada.",
+      2: "BLOQUE 2 — PADECIMIENTO(S): cifras exclusivas de la selección de padecimiento(s) vigente. Son independientes de Bloque 1 y NO deben sumarse ni compararse directamente con sus totales.",
+    };
 
     seccionesDatos.forEach((sec) => {
+      const bloqueSeccion = _bloqueDeSeccion(sec.clave);
+      if (bloqueSeccion !== bloqueActual) {
+        if (bloqueActual !== null && y > 44) nuevaPagina(orientationActual); // Bloque 2 siempre empieza en página nueva si ya había contenido
+        pagina.elementos.push({ tipo: "divisor-bloque", texto: TEXTO_DIVISOR[bloqueSeccion] });
+        y += ALTO_DIVISOR_BLOQUE;
+        bloqueActual = bloqueSeccion;
+      }
+
       const hayTabla = sec.tabla && sec.tabla.rows.length;
-      const orientNecesaria = hayTabla ? _morbPdfOrientacion(sec.tabla.head, sec.tabla.rows).orientation : "portrait";
+      const orientTabla = hayTabla ? _morbPdfOrientacion(sec.tabla.head, sec.tabla.rows).orientation : "portrait";
+      // ACT22 (corrección) — algunas secciones (Municipio siempre; otras
+      // cuando tienen muchas categorías o nombres largos) exigen hoja
+      // apaisada por el contenido de su GRÁFICA, no sólo por el ancho de
+      // su tabla — ver _decidirDisenoSeccionCategorica. Esa necesidad
+      // manda sobre la decisión basada únicamente en la tabla.
+      const orientNecesaria = sec.orientForzada || orientTabla;
       if (orientNecesaria !== orientationActual) nuevaPagina(orientNecesaria);
 
       const anchoDisponible = pageWidth - margenX * 2;
@@ -1539,7 +1993,9 @@ function SNSP_renderMorbilidadModulePage(opts) {
       const altoNota = sec.nota ? ALTO_NOTA : 0;
       const altoTablaEstim = hayTabla ? 20 + (sec.tabla.rows.length + 1) * ALTO_FILA_ESTIM + 10 : 24;
 
-      const topeImagenJuntos = Math.round(altoUtilPagina * 0.62);
+      // ACT22: gráficas más grandes (antes 0.62/0.90 del alto útil) para
+      // aprovechar mejor la hoja y que las etiquetas se lean con claridad.
+      const topeImagenJuntos = Math.round(altoUtilPagina * 0.72);
       const imagenJuntos = _capturarImagenGrafica(sec.chartInst, anchoDisponible, topeImagenJuntos);
       const altoImagenJuntos = imagenJuntos ? imagenJuntos.h + 12 : 0;
       const altoJuntos = ALTO_TITULO + altoNota + altoImagenJuntos + altoTablaEstim;
@@ -1553,17 +2009,29 @@ function SNSP_renderMorbilidadModulePage(opts) {
         y += altoJuntos;
       } else {
         if (y > 44) nuevaPagina(orientationActual);
-        const topeImagenGrande = Math.round(altoUtilPagina * 0.90);
+        const topeImagenGrande = Math.round(altoUtilPagina * 0.92);
         const imagenGrande = _capturarImagenGrafica(sec.chartInst, anchoDisponible, topeImagenGrande) || imagenJuntos;
         pagina.elementos.push({ tipo: "seccion-imagen", titulo: sec.titulo, nota: sec.nota, imagen: imagenGrande });
-        nuevaPagina(orientationActual);
-        pagina.elementos.push({ tipo: "seccion-tabla", titulo: `${sec.titulo} (continuación)`, tabla: sec.tabla });
-        y += altoTablaEstim;
+        if (sec.permiteTablaSiNoCabe) {
+          // Municipio (y "Gráfica y tabla principal" cuando su "Por" es
+          // Municipio): única excepción que conserva la página adicional
+          // sólo para su tabla — siempre los 18 municipios, nunca Top 10.
+          nuevaPagina(orientationActual);
+          pagina.elementos.push({ tipo: "seccion-tabla", titulo: `${sec.titulo} (continuación)`, tabla: sec.tabla });
+          y += altoTablaEstim;
+        } else {
+          // ACT24 — ya no se agrega una página aparte sólo para repetir en
+          // tabla lo que esta gráfica grande ya muestra con sus propios
+          // valores; la siguiente sección empieza en una página nueva para
+          // no amontonarse debajo de una gráfica que ya usa casi toda la
+          // hoja.
+          nuevaPagina(orientationActual);
+        }
       }
     });
 
     cerrarPagina();
-    return { paginas };
+    return { paginas, limpiezas };
   }
 
   function _dibujarPlanEnJsPDF(plan) {
@@ -1602,6 +2070,21 @@ function SNSP_renderMorbilidadModulePage(opts) {
             const partido = doc.splitTextToSize(linea, anchoDisponible);
             partido.forEach((l) => { doc.text(l, margenX, y); y += 14; });
           });
+        } else if (el.tipo === "divisor-bloque") {
+          // ACT22: separador visual muy claro entre Bloque 1 y Bloque 2
+          // (franja de color institucional con texto en blanco) — evita
+          // que el total general de un bloque se confunda con cifras del
+          // otro al hojear el reporte.
+          doc.setFillColor(97, 18, 50);
+          doc.rect(margenX, y - 14, anchoDisponible, 26, "F");
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(9.5);
+          doc.setTextColor(255, 255, 255);
+          const lineasDivisor = doc.splitTextToSize(el.texto, anchoDisponible - 16);
+          let yDivisor = y - 14 + 10;
+          lineasDivisor.slice(0, 2).forEach((l) => { doc.text(l, margenX + 8, yDivisor); yDivisor += 11; });
+          doc.setTextColor(0, 0, 0);
+          y += 20;
         } else if (el.tipo === "observaciones") {
           y += 4;
           doc.setFont("helvetica", "bold");
@@ -1676,6 +2159,7 @@ function SNSP_renderMorbilidadModulePage(opts) {
     }
     const margenX = 40;
     const plan = _construirPlanReportePDF(seccionesElegidas, observaciones);
+    (plan.limpiezas || []).forEach((fn) => fn());
     const doc = _dibujarPlanEnJsPDF(plan);
 
     const totalPaginas = doc.internal.getNumberOfPages();
@@ -1740,6 +2224,12 @@ function SNSP_renderMorbilidadModulePage(opts) {
                 <div><strong>Fecha de generación:</strong> ${_escHtml(b.fecha)}</div>
                 <div><strong>Fuente:</strong> ${_escHtml(b.fuente)}</div>
               </div>
+            </div>`;
+        }
+        if (b.tipo === "divisor-bloque") {
+          return `
+            <div style="background:#611232; color:#fff; font-weight:700; font-size:9px; padding:8px 10px; margin:4px 0 10px; border-radius:3px;">
+              ${_escHtml(b.texto)}
             </div>`;
         }
         if (b.tipo === "observaciones") {
@@ -1824,6 +2314,7 @@ function SNSP_renderMorbilidadModulePage(opts) {
 
   function _mostrarVistaPrevia(seccionesElegidas, observaciones) {
     const plan = _construirPlanReportePDF(seccionesElegidas, observaciones);
+    (plan.limpiezas || []).forEach((fn) => fn());
     _vistaPreviaTotalPaginas = plan.paginas.length;
     if (vistaPreviaResumen) vistaPreviaResumen.innerHTML = `<div id="morb-vp-paginas-wrap">${_renderPlanVistaPreviaHTML(plan)}</div>`;
     _vistaPreviaZoom = 1;

@@ -14,7 +14,7 @@ window.SNSP_CONFIG = {
     name: "SNSP | Inteligencia Digital",
     shortName: "SNSP",
     slogan: "Datos que impulsan decisiones",
-    version: "2.6.0",
+    version: "2.7.0",
     environment: "demo", // demo | staging | production
   },
 
@@ -73,7 +73,8 @@ window.SNSP_CONFIG = {
     { id: "mama", label: "Cáncer de mama", route: "pages/mama.html", icon: "mama", enabled: true },
     { id: "dengue", label: "Dengue", route: "pages/dengue.html", icon: "dengue", enabled: false },
     { id: "morbilidad", label: "Morbilidad", route: "pages/morbilidad.html", icon: "morbilidad", enabled: true, validado: true },
-    { id: "poblacion", label: "Población (Querétaro)", route: "pages/poblacion.html", icon: "poblacion", enabled: true },
+    { id: "canal_endemico", label: "Canal endémico", route: "pages/canal_endemico.html", icon: "canal_endemico", enabled: true },
+    { id: "poblacion", label: "Población", route: "pages/poblacion.html", icon: "poblacion", enabled: true },
     { id: "mortalidad", label: "Mortalidad", route: "pages/mortalidad.html", icon: "mortalidad", enabled: false },
     { id: "vacunacion", label: "Vacunación", route: "pages/vacunacion.html", icon: "vacunacion", enabled: false },
     { id: "salud_mental", label: "Salud mental", route: "pages/salud_mental.html", icon: "salud_mental", enabled: false },
@@ -109,6 +110,22 @@ window.SNSP_CONFIG = {
   // entrada nueva aquí cada vez que se libere una versión; no requiere
   // tocar ninguna pantalla.
   changelog: [
+    {
+      version: "2.7.0",
+      fecha: "2026-10-26",
+      notas: [
+        "VERSIÓN DE PRUEBAS (ACT26) — no publicada en GitHub ni en producción. Módulo Población: nueva sección 'Población histórica SUIVE 2017-2026' en su propia pestaña, separada de 'Población por localidad 2025' (padrón ASIS, sin cambios de lógica). Las dos fuentes nunca se mezclan.",
+        "Nueva base BASE_POBLACION_SUIVE_QRO_2017_2026_PLANA.xlsx (3,960 registros: 10 años × 18 municipios × 2 sexos × 11 grupos de edad), auditada: sin nulos ni duplicados; decimales por ruido de exportación y por prorrateo del grupo 0-4 (se conservan los valores originales y se redondea sólo al mostrar). 2022-2026 idéntico celda por celda a la población de Morbilidad. La fuente metodológica de la proyección queda pendiente de confirmar: no se atribuye a ninguna institución.",
+        "Filtros propios en cascada: Año (uno, obligatorio — nunca se suman años), Jurisdicción sanitaria y Municipio. KPIs: población total, mujeres, hombres, % mujeres/hombres y crecimiento vs año anterior (2017: No disponible).",
+        "Pirámide poblacional nueva (components/pyramidChart.js): Hombres izquierda (dorado), Mujeres derecha (vino), mayor edad arriba, 11 grupos tal como vienen en la fuente con su amplitud indicada, modo Absolutos / %, tooltip con población, % del total y % dentro del sexo.",
+        "Mapa coroplético interactivo de los 18 municipios con los límites reales de Municipios_Queretaro_18 (TopoJSON del proyecto QGIS/Power BI), relacionado por clave CVEGEO (no por nombre) tras verificar claves y jurisdicciones en GeoJSON, TopoJSON y catálogo Power BI; clic en un municipio = filtrar. Evolución 2017-2026, población por jurisdicción y por municipio, y distribución por grandes grupos de edad (sumas exactas de intervalos).",
+        "Corrección mínima de un error preexistente (ACT25) en SNSP_renderPopulationPyramid (components/charts.js): Chart.js invocaba su formatter con un objeto de contexto (TypeError) y, al compartir el ciclo de dibujo, dejaba en blanco las demás gráficas de la página. Ahora las etiquetas de la pirámide ASIS sí se dibujan.",
+        "ACT26b — Comparativo poblacional por años (sección SUIVE): selector de años múltiple e independiente (2017-2026, con Mostrar todos / Quitar todos / Últimos 5), barras agrupadas de Población total, Mujeres y Hombres con etiquetas (horizontales en teléfono) y tabla con población, diferencia absoluta y variación % respecto al año seleccionado anterior (referencia indicada; años no consecutivos señalados). Respeta Jurisdicción y Municipio; el filtro Año, la pirámide y el mapa siguen con un solo año. Cada barra es la población de su propio año: nunca se suman años. Verificado contra el Excel original: 23 áreas × 10 años × 3 indicadores, 0 diferencias.",
+        "ACT26c — (1) La pirámide de la sección SUIVE se sustituyó por barras horizontales agrupadas por sexo (Hombres dorado, Mujeres vino) y grupo de edad, con los 11 grupos de la base (sin quinquenios estimados) y nota metodológica de amplitud desigual; la pirámide del padrón ASIS 2025 no cambia. (2) Indicadores de estructura: % mujeres, % hombres y población de 65 años y más en número y %. (3) Ranking municipal 5 más / 5 menos poblados (estado: 18 municipios; jurisdicción: sus municipios; municipio: su jurisdicción, con su lugar en jurisdicción y estado). (4) Botón «Descargar reporte poblacional»: PDF ejecutivo generado en el navegador (jsPDF, mismas versiones que Morbilidad) con los filtros vigentes — encabezado institucional, ámbito, años, KPIs, interpretación descriptiva, mapa, ranking, distribución por sexo y edad, evolución, comparativo, fuente y notas. La base se identifica como 'base de población utilizada en SUIVE Querétaro' (no se atribuye a CONAPO). Verificado contra el Excel: 2,430 comparaciones de estructura y ranking sin diferencias; cifras de los PDF (estado, JS 4, municipio) leídas del archivo descargado y comparadas con el Excel.",
+        "ACT26c.1 (correcciones de cierre) — Mapa: nueva rampa de 5 colores con mayor contraste (beige, dorado claro, dorado, rojo claro, vino oscuro), límites municipales con doble trazo, municipio/jurisdicción seleccionados con halo y contorno oscuro, leyenda más grande y quintiles por rango con valores mínimo y máximo reales (sin intervalos que compartan límites); una sola clasificación para tablero y PDF. Porcentajes con denominador explícito en tarjetas y en una tabla plegable de los 11 grupos (población y % del total; hombres y mujeres con % dentro del grupo). Comparativo: se aclara que la población total incluye a mujeres y hombres. PDF: se conserva en 5 páginas (comprobado incluso con los 10 años en el comparativo), cifras y tablas más grandes, recuadro de resumen demográfico (0-14, 15-64, 65+, índices de dependencia y envejecimiento con definiciones), los 11 grupos siempre rotulados. Verificado contra el Excel: 13,110 comparaciones sin diferencias.",
+        "Archivos nuevos: scripts/build_poblacion_historica.py, data/real/poblacion_historica_2017_2026.js, data/real/geo_municipios_queretaro.js, data/processed/poblacion_historica_2017_2026.json, data/processed/auditoria_poblacion_historica.json, data/geo/*, services/poblacionHistoricaDataService.js, components/pyramidChart.js, components/mapaCoropleticoQro.js, modules/poblacionHistoricaModuleView.js, styles/poblacion-historica.css, scripts/test_poblacion_historica_jsdom.js, playwright_check_act26_poblacion.js. Modificados: pages/poblacion.html (pestañas), components/charts.js (una función), config/config.js. CACU, Mama, Morbilidad, Canal endémico, Carga y Dashboard no se tocaron.",
+      ],
+    },
     {
       version: "2.6.0",
       fecha: "2026-10-01",

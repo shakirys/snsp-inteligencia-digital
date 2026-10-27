@@ -1,0 +1,714 @@
+[
+  {
+    "ok": true,
+    "msg": "Pestaña SUIVE abre por defecto"
+  },
+  {
+    "ok": true,
+    "msg": "Panel ASIS 2025 oculto al inicio"
+  },
+  {
+    "ok": true,
+    "msg": "Año por defecto = 2026"
+  },
+  {
+    "ok": true,
+    "msg": "KPI total estatal 2026 = 2,700,978"
+  },
+  {
+    "ok": true,
+    "msg": "KPI mujeres 2026 = 1,376,643"
+  },
+  {
+    "ok": true,
+    "msg": "KPI hombres 2026 = 1,324,335"
+  },
+  {
+    "ok": true,
+    "msg": "Crecimiento 2026 vs 2025 = +1.75%"
+  },
+  {
+    "ok": true,
+    "msg": "Estructura: 51.0% mujeres, 49.0% hombres"
+  },
+  {
+    "ok": true,
+    "msg": "Estructura: 65 años y más = 206,954 (7.7%)"
+  },
+  {
+    "ok": true,
+    "msg": "Botón visible «Descargar reporte poblacional»"
+  },
+  {
+    "ok": true,
+    "msg": "Mapa dibuja 18 municipios"
+  },
+  {
+    "ok": true,
+    "msg": "Leyenda del mapa con 5 clases"
+  },
+  {
+    "ok": true,
+    "msg": "Leyenda del tablero = rangos reales calculados del Excel (sin traslape)"
+  },
+  {
+    "ok": true,
+    "msg": "Mapa: límites de los 18 municipios trazados"
+  },
+  {
+    "ok": true,
+    "msg": "Leyenda legible (fuente 14px)"
+  },
+  {
+    "ok": true,
+    "msg": "ACT26c: la pirámide SUIVE fue sustituida"
+  },
+  {
+    "ok": true,
+    "msg": "Sexo y edad: barras horizontales agrupadas Hombres / Mujeres desde cero"
+  },
+  {
+    "ok": true,
+    "msg": "Colores institucionales: dorado (hombres) y vino (mujeres)"
+  },
+  {
+    "ok": true,
+    "msg": "Grupos en orden de edad (0 años a 65 y más)"
+  },
+  {
+    "ok": true,
+    "msg": "Los 11 grupos de la fuente"
+  },
+  {
+    "ok": true,
+    "msg": "Suma de barras por sexo y edad = KPI total"
+  },
+  {
+    "ok": true,
+    "msg": "Tabla de 11 grupos completa sin desplazamiento en escritorio"
+  },
+  {
+    "ok": true,
+    "msg": "Tabla 11 grupos (25–44) con % del total y % del grupo"
+  },
+  {
+    "ok": true,
+    "msg": "Ranking: 5 más poblados 2026"
+  },
+  {
+    "ok": true,
+    "msg": "Ranking: 5 menos poblados 2026"
+  },
+  {
+    "ok": true,
+    "msg": "Tooltip del mapa: Querétaro 1,243,610 (2026)"
+  },
+  {
+    "ok": true,
+    "msg": "Modo %: todas las barras suman 100%"
+  },
+  {
+    "ok": true,
+    "msg": "Cascada: JS 2 muestra sus 5 municipios"
+  },
+  {
+    "ok": true,
+    "msg": "KPI JS 2 San Juan del Río 2026 = 624,937"
+  },
+  {
+    "ok": true,
+    "msg": "Mapa atenúa 13 municipios fuera de JS 2"
+  },
+  {
+    "ok": true,
+    "msg": "Clic en mapa selecciona Corregidora"
+  },
+  {
+    "ok": true,
+    "msg": "La jurisdicción se ajusta a la del municipio (JS 1)"
+  },
+  {
+    "ok": true,
+    "msg": "KPI Corregidora 2026 = 245,855"
+  },
+  {
+    "ok": true,
+    "msg": "Mapa: Corregidora resaltada con contorno oscuro"
+  },
+  {
+    "ok": true,
+    "msg": "Cascada: San Joaquín (JS 3) no aparece con JS 1 activa"
+  },
+  {
+    "ok": true,
+    "msg": "KPI San Joaquín 2017 = 9,169"
+  },
+  {
+    "ok": true,
+    "msg": "Crecimiento 2017 = No disponible"
+  },
+  {
+    "ok": true,
+    "msg": "Evolución por sexo: Mujeres y Hombres"
+  },
+  {
+    "ok": true,
+    "msg": "Limpiar filtros regresa a estado 2026"
+  },
+  {
+    "ok": true,
+    "msg": "Comparativo: por defecto 2022-2026"
+  },
+  {
+    "ok": true,
+    "msg": "Mostrar todos: 10 barras = totales anuales SUIVE"
+  },
+  {
+    "ok": true,
+    "msg": "2026: Mujeres 1,376,643 y Hombres 1,324,335"
+  },
+  {
+    "ok": true,
+    "msg": "Selección libre de años: 2017, 2020, 2023, 2026"
+  },
+  {
+    "ok": true,
+    "msg": "Tabla indica la referencia (vs 2017, 3 años)"
+  },
+  {
+    "ok": true,
+    "msg": "JS 2 San Juan del Río: 567,512 / 591,682 / 608,665 / 624,937"
+  },
+  {
+    "ok": true,
+    "msg": "Sexo y edad y mapa siguen con un solo año (2026)"
+  },
+  {
+    "ok": true,
+    "msg": "Barras con ancho suficiente para leerse"
+  },
+  {
+    "ok": true,
+    "msg": "PDF estado 2026: se descarga un PDF válido (Reporte_poblacion_SUIVE_Estado_de_Queretaro_2026.pdf, 675 KB)"
+  },
+  {
+    "ok": true,
+    "msg": "PDF estado 2026: 5 páginas (máximo 6)"
+  },
+  {
+    "ok": true,
+    "msg": "PDF estado 2026: leyenda del mapa con los 5 rangos reales sin traslape"
+  },
+  {
+    "ok": true,
+    "msg": "PDF estado 2026: las 61 cifras esperadas (calculadas del Excel) aparecen en el PDF"
+  },
+  {
+    "ok": true,
+    "msg": "PDF estado 2026: ranking con los municipios esperados"
+  },
+  {
+    "ok": true,
+    "msg": "PDF estado 2026: contiene \"SNSP Querétaro — Inteligencia e Información\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF estado 2026: contiene \"Reporte ejecutivo de población\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF estado 2026: contiene \"base de población utilizada en SUIVE Querétaro\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF estado 2026: contiene \"Interpretación descriptiva\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF estado 2026: contiene \"Fuente de información y notas metodológicas\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF estado 2026: contiene \"Fecha de generación\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF estado 2026: contiene \"Resumen demográfico\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF estado 2026: contiene \"Índice de dependencia\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF estado 2026: contiene \"Índice de envejecimiento\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF estado 2026: contiene \"% del grupo\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF estado 2026: contiene \"% del total\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF estado 2026: contiene \"Denominadores\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF estado 2026: contiene \"de la población total\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF estado 2026: contiene \"Estado de Querétaro\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF estado 2026: contiene \"Años del comparativo 2022, 2023, 2024, 2025, 2026\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF estado 2026: contiene \"5 menos poblados\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF estado 2026: contiene \"Territorio\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF estado 2026: contiene \"no tres poblaciones independientes\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF estado 2026: contiene \"Población total (mujeres + hombres)\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF estado 2026: CONAPO sólo aparece para aclarar que NO se le atribuye la base (1 menciones)"
+  },
+  {
+    "ok": true,
+    "msg": "PDF estado 2026: conserva la estructura de 5 páginas"
+  },
+  {
+    "ok": true,
+    "msg": "PDF estado: incluye los 5 menos poblados"
+  },
+  {
+    "ok": true,
+    "msg": "PDF estado: incluye mapa y logotipo"
+  },
+  {
+    "ok": true,
+    "msg": "PDF JS 4 (1 año en comparativo): se descarga un PDF válido (Reporte_poblacion_SUIVE_Jurisdiccion_Sanitaria_4_Jalpan_2026.pdf, 597 KB)"
+  },
+  {
+    "ok": true,
+    "msg": "PDF JS 4 (1 año en comparativo): 5 páginas (máximo 6)"
+  },
+  {
+    "ok": true,
+    "msg": "PDF JS 4 (1 año en comparativo): leyenda del mapa con los 5 rangos reales sin traslape"
+  },
+  {
+    "ok": true,
+    "msg": "PDF JS 4 (1 año en comparativo): las 56 cifras esperadas (calculadas del Excel) aparecen en el PDF"
+  },
+  {
+    "ok": true,
+    "msg": "PDF JS 4 (1 año en comparativo): ranking con los municipios esperados"
+  },
+  {
+    "ok": true,
+    "msg": "PDF JS 4 (1 año en comparativo): contiene \"SNSP Querétaro — Inteligencia e Información\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF JS 4 (1 año en comparativo): contiene \"Reporte ejecutivo de población\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF JS 4 (1 año en comparativo): contiene \"base de población utilizada en SUIVE Querétaro\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF JS 4 (1 año en comparativo): contiene \"Interpretación descriptiva\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF JS 4 (1 año en comparativo): contiene \"Fuente de información y notas metodológicas\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF JS 4 (1 año en comparativo): contiene \"Fecha de generación\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF JS 4 (1 año en comparativo): contiene \"Resumen demográfico\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF JS 4 (1 año en comparativo): contiene \"Índice de dependencia\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF JS 4 (1 año en comparativo): contiene \"Índice de envejecimiento\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF JS 4 (1 año en comparativo): contiene \"% del grupo\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF JS 4 (1 año en comparativo): contiene \"% del total\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF JS 4 (1 año en comparativo): contiene \"Denominadores\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF JS 4 (1 año en comparativo): contiene \"de la población total\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF JS 4 (1 año en comparativo): contiene \"Jurisdicción Sanitaria 4 Jalpan\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF JS 4 (1 año en comparativo): contiene \"se requieren al menos dos para calcular diferencias\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF JS 4 (1 año en comparativo): contiene \"tiene 4 municipios: se muestran todos\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF JS 4 (1 año en comparativo): CONAPO sólo aparece para aclarar que NO se le atribuye la base (1 menciones)"
+  },
+  {
+    "ok": true,
+    "msg": "PDF municipio 010 2017 (sin comparativo): se descarga un PDF válido (Reporte_poblacion_SUIVE_Landa_de_Matamoros_2017.pdf, 565 KB)"
+  },
+  {
+    "ok": true,
+    "msg": "PDF municipio 010 2017 (sin comparativo): 5 páginas (máximo 6)"
+  },
+  {
+    "ok": true,
+    "msg": "PDF municipio 010 2017 (sin comparativo): leyenda del mapa con los 5 rangos reales sin traslape"
+  },
+  {
+    "ok": true,
+    "msg": "PDF municipio 010 2017 (sin comparativo): las 55 cifras esperadas (calculadas del Excel) aparecen en el PDF"
+  },
+  {
+    "ok": true,
+    "msg": "PDF municipio 010 2017 (sin comparativo): ranking con los municipios esperados"
+  },
+  {
+    "ok": true,
+    "msg": "PDF municipio 010 2017 (sin comparativo): contiene \"SNSP Querétaro — Inteligencia e Información\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF municipio 010 2017 (sin comparativo): contiene \"Reporte ejecutivo de población\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF municipio 010 2017 (sin comparativo): contiene \"base de población utilizada en SUIVE Querétaro\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF municipio 010 2017 (sin comparativo): contiene \"Interpretación descriptiva\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF municipio 010 2017 (sin comparativo): contiene \"Fuente de información y notas metodológicas\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF municipio 010 2017 (sin comparativo): contiene \"Fecha de generación\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF municipio 010 2017 (sin comparativo): contiene \"Resumen demográfico\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF municipio 010 2017 (sin comparativo): contiene \"Índice de dependencia\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF municipio 010 2017 (sin comparativo): contiene \"Índice de envejecimiento\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF municipio 010 2017 (sin comparativo): contiene \"% del grupo\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF municipio 010 2017 (sin comparativo): contiene \"% del total\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF municipio 010 2017 (sin comparativo): contiene \"Denominadores\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF municipio 010 2017 (sin comparativo): contiene \"de la población total\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF municipio 010 2017 (sin comparativo): contiene \"Landa de Matamoros\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF municipio 010 2017 (sin comparativo): contiene \"No aplica: no se seleccionaron años\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF municipio 010 2017 (sin comparativo): contiene \"ocupa el lugar 16 de 18\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF municipio 010 2017 (sin comparativo): contiene \"primer año de la serie\""
+  },
+  {
+    "ok": true,
+    "msg": "PDF municipio 010 2017 (sin comparativo): CONAPO sólo aparece para aclarar que NO se le atribuye la base (1 menciones)"
+  },
+  {
+    "ok": true,
+    "msg": "PDF municipio: posición 16/18 estado y 3/4 jurisdicción"
+  },
+  {
+    "ok": true,
+    "msg": "Mensaje de confirmación visible tras generar el PDF"
+  },
+  {
+    "ok": true,
+    "msg": "Pestaña ASIS 2025 visible al activarla"
+  },
+  {
+    "ok": true,
+    "msg": "Sección ASIS 2025 sin cambios: total 2,655,609"
+  },
+  {
+    "ok": true,
+    "msg": "Tabla de localidades ASIS muestra 80 filas"
+  },
+  {
+    "ok": true,
+    "msg": "Pirámide ASIS se redimensiona al mostrar la pestaña"
+  },
+  {
+    "ok": true,
+    "msg": "Pirámide ASIS 2025 sin el TypeError preexistente de ACT25 (corregido)"
+  },
+  {
+    "ok": true,
+    "msg": "Informativo: 0 error(es) en la pirámide ASIS 2025 (el error preexistente de ACT25 se corrigió en ACT26; esperado 0)"
+  },
+  {
+    "ok": true,
+    "msg": "Sin errores NUEVOS de consola en escritorio"
+  },
+  {
+    "ok": true,
+    "msg": "06_tableta: sin desplazamiento horizontal (exceso 0px)"
+  },
+  {
+    "ok": true,
+    "msg": "06_tableta: KPI total correcto"
+  },
+  {
+    "ok": true,
+    "msg": "06_tableta: comparativo sin desplazamiento horizontal de la página"
+  },
+  {
+    "ok": true,
+    "msg": "06_tableta: PDF: se descarga un PDF válido (Reporte_poblacion_SUIVE_Estado_de_Queretaro_2026.pdf, 675 KB)"
+  },
+  {
+    "ok": true,
+    "msg": "06_tableta: PDF: 5 páginas (máximo 6)"
+  },
+  {
+    "ok": true,
+    "msg": "06_tableta: PDF: leyenda del mapa con los 5 rangos reales sin traslape"
+  },
+  {
+    "ok": true,
+    "msg": "06_tableta: PDF: las 61 cifras esperadas (calculadas del Excel) aparecen en el PDF"
+  },
+  {
+    "ok": true,
+    "msg": "06_tableta: PDF: ranking con los municipios esperados"
+  },
+  {
+    "ok": true,
+    "msg": "06_tableta: PDF: contiene \"SNSP Querétaro — Inteligencia e Información\""
+  },
+  {
+    "ok": true,
+    "msg": "06_tableta: PDF: contiene \"Reporte ejecutivo de población\""
+  },
+  {
+    "ok": true,
+    "msg": "06_tableta: PDF: contiene \"base de población utilizada en SUIVE Querétaro\""
+  },
+  {
+    "ok": true,
+    "msg": "06_tableta: PDF: contiene \"Interpretación descriptiva\""
+  },
+  {
+    "ok": true,
+    "msg": "06_tableta: PDF: contiene \"Fuente de información y notas metodológicas\""
+  },
+  {
+    "ok": true,
+    "msg": "06_tableta: PDF: contiene \"Fecha de generación\""
+  },
+  {
+    "ok": true,
+    "msg": "06_tableta: PDF: contiene \"Resumen demográfico\""
+  },
+  {
+    "ok": true,
+    "msg": "06_tableta: PDF: contiene \"Índice de dependencia\""
+  },
+  {
+    "ok": true,
+    "msg": "06_tableta: PDF: contiene \"Índice de envejecimiento\""
+  },
+  {
+    "ok": true,
+    "msg": "06_tableta: PDF: contiene \"% del grupo\""
+  },
+  {
+    "ok": true,
+    "msg": "06_tableta: PDF: contiene \"% del total\""
+  },
+  {
+    "ok": true,
+    "msg": "06_tableta: PDF: contiene \"Denominadores\""
+  },
+  {
+    "ok": true,
+    "msg": "06_tableta: PDF: contiene \"de la población total\""
+  },
+  {
+    "ok": true,
+    "msg": "06_tableta: PDF: CONAPO sólo aparece para aclarar que NO se le atribuye la base (1 menciones)"
+  },
+  {
+    "ok": true,
+    "msg": "06_tableta: ranking visible con 5 municipios"
+  },
+  {
+    "ok": true,
+    "msg": "06_tableta: sin errores NUEVOS de consola"
+  },
+  {
+    "ok": true,
+    "msg": "07_telefono: sin desplazamiento horizontal (exceso 0px)"
+  },
+  {
+    "ok": true,
+    "msg": "07_telefono: KPI total correcto"
+  },
+  {
+    "ok": true,
+    "msg": "07_telefono: comparativo en barras horizontales para legibilidad"
+  },
+  {
+    "ok": true,
+    "msg": "07_telefono: comparativo sin desplazamiento horizontal de la página"
+  },
+  {
+    "ok": true,
+    "msg": "07_telefono: PDF: se descarga un PDF válido (Reporte_poblacion_SUIVE_Estado_de_Queretaro_2026.pdf, 675 KB)"
+  },
+  {
+    "ok": true,
+    "msg": "07_telefono: PDF: 5 páginas (máximo 6)"
+  },
+  {
+    "ok": true,
+    "msg": "07_telefono: PDF: leyenda del mapa con los 5 rangos reales sin traslape"
+  },
+  {
+    "ok": true,
+    "msg": "07_telefono: PDF: las 61 cifras esperadas (calculadas del Excel) aparecen en el PDF"
+  },
+  {
+    "ok": true,
+    "msg": "07_telefono: PDF: ranking con los municipios esperados"
+  },
+  {
+    "ok": true,
+    "msg": "07_telefono: PDF: contiene \"SNSP Querétaro — Inteligencia e Información\""
+  },
+  {
+    "ok": true,
+    "msg": "07_telefono: PDF: contiene \"Reporte ejecutivo de población\""
+  },
+  {
+    "ok": true,
+    "msg": "07_telefono: PDF: contiene \"base de población utilizada en SUIVE Querétaro\""
+  },
+  {
+    "ok": true,
+    "msg": "07_telefono: PDF: contiene \"Interpretación descriptiva\""
+  },
+  {
+    "ok": true,
+    "msg": "07_telefono: PDF: contiene \"Fuente de información y notas metodológicas\""
+  },
+  {
+    "ok": true,
+    "msg": "07_telefono: PDF: contiene \"Fecha de generación\""
+  },
+  {
+    "ok": true,
+    "msg": "07_telefono: PDF: contiene \"Resumen demográfico\""
+  },
+  {
+    "ok": true,
+    "msg": "07_telefono: PDF: contiene \"Índice de dependencia\""
+  },
+  {
+    "ok": true,
+    "msg": "07_telefono: PDF: contiene \"Índice de envejecimiento\""
+  },
+  {
+    "ok": true,
+    "msg": "07_telefono: PDF: contiene \"% del grupo\""
+  },
+  {
+    "ok": true,
+    "msg": "07_telefono: PDF: contiene \"% del total\""
+  },
+  {
+    "ok": true,
+    "msg": "07_telefono: PDF: contiene \"Denominadores\""
+  },
+  {
+    "ok": true,
+    "msg": "07_telefono: PDF: contiene \"de la población total\""
+  },
+  {
+    "ok": true,
+    "msg": "07_telefono: PDF: CONAPO sólo aparece para aclarar que NO se le atribuye la base (1 menciones)"
+  },
+  {
+    "ok": true,
+    "msg": "07_telefono: ranking visible con 5 municipios"
+  },
+  {
+    "ok": true,
+    "msg": "07_telefono: sin errores NUEVOS de consola"
+  }
+]

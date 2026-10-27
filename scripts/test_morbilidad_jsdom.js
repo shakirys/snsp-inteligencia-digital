@@ -211,6 +211,8 @@ window.Chart = function (ctx, cfg) {
   this.canvas = ctx;
   this.options = cfg && cfg.options ? cfg.options : {};
   this.update = function () {};
+  this.resize = function () {};
+  this.draw = function () {};
   if (ctx && ctx.id) chartInstancesById[ctx.id] = this;
 };
 window.Chart.register = function () {};
@@ -231,6 +233,9 @@ window.jspdf = {
     window.__pdfPageOrientations = [null, (opts && opts.orientation) || "portrait"];
     this.setFont = function () {};
     this.setFontSize = function () {};
+    this.setFillColor = function () {};
+    this.setTextColor = function () {};
+    this.rect = function () { window.__pdfRectCalls = (window.__pdfRectCalls || 0) + 1; };
     this.text = function (str) { window.__pdfTextLog.push(str); };
     this.splitTextToSize = function (str) { return [str]; };
     this.addImage = function () { window.__pdfAddImageCalls += 1; };
@@ -353,6 +358,39 @@ assert(totalGeneralH === 3551200, `Bloque 1 — total general debe ser EXACTAMEN
 assert(totalGeneralP === 3551200, `Bloque 2 — total general debe ser EXACTAMENTE 3,551,200 (trae: ${totalGeneralP})`);
 assert(txt("morb-h-tabla-head").includes("2022") && txt("morb-h-tabla-head").includes("2026"),
   "Sin ningún año marcado, la tabla del Bloque 1 debe venir en modo comparativo (una columna por cada uno de los 5 años)");
+
+// =====================================================================
+// Ajuste solicitado por la usuaria: "Seleccionar todos" en el filtro Año,
+// sincronizado con la selección individual (no cambia metodología ni
+// cálculos — sólo agrega esta opción al filtro ya existente).
+// =====================================================================
+console.log("\n--- Ajuste: 'Seleccionar todos' en el filtro Año ---");
+const menuAnioEl = doc.getElementById("morb-anio-menu");
+const chkTodosEl = doc.getElementById("morb-anio-todos-check");
+const chksAnioEl = () => Array.from(menuAnioEl.querySelectorAll("input[type=checkbox][value]"));
+
+marcarSoloAnio(null);
+assert(chkTodosEl.checked === false, "Con ningún año marcado, 'Seleccionar todos' debe estar desmarcado");
+
+chkTodosEl.checked = true;
+chkTodosEl.dispatchEvent(new window.Event("change", { bubbles: true }));
+assert(chksAnioEl().every((c) => c.checked), "Al marcar 'Seleccionar todos' deben quedar marcados todos los años disponibles de una vez");
+assert(kpiValorNumero("kpi-grid-h", "Casos totales") === 3551200, "Con 'Seleccionar todos' marcado, el Bloque 1 debe dar el total general 3,551,200");
+
+const primerChkAnio = chksAnioEl()[0];
+primerChkAnio.checked = false;
+primerChkAnio.dispatchEvent(new window.Event("change", { bubbles: true }));
+assert(chkTodosEl.checked === false, "Al desmarcar un año individual, 'Seleccionar todos' debe desactivarse");
+
+primerChkAnio.checked = true;
+primerChkAnio.dispatchEvent(new window.Event("change", { bubbles: true }));
+assert(chkTodosEl.checked === true, "Si vuelven a quedar todos los años marcados individualmente, 'Seleccionar todos' debe reflejarse marcado de nuevo");
+
+marcarSoloAnio("2022");
+assert(chkTodosEl.checked === false, "Con un solo año marcado individualmente, 'Seleccionar todos' debe quedar desmarcado");
+assert(kpiValorNumero("kpi-grid-h", "Casos totales") === TOTALES_POR_ANIO["2022"], "La selección individual de un solo año sigue funcionando igual que antes de agregar 'Seleccionar todos'");
+
+marcarSoloAnio(null); // deja el filtro limpio para el resto de las pruebas existentes
 
 // =====================================================================
 // Separación Bloque 1 / Bloque 2: el buscador de padecimiento NUNCA debe

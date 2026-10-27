@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Canal Endémico Exploratorio | SNSP Inteligencia Digital</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../styles/tokens.css">
+<link rel="stylesheet" href="../styles/main.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
+<style>
+  /* Paleta de las 4 zonas del canal endémico — ajustada a partir de una
+     imagen de referencia visual de la usuaria (sólo diseño, no fuente de
+     datos): cada banda debe verse como un color sólido y propio, igual al
+     de su leyenda, sin transparencias que las hagan mezclarse entre sí.
+     Éxito se oscureció y se le dio más saturación (más oscuro que el verde
+     de la imagen de referencia, a propósito, para distinguirse con
+     claridad de seguridad); seguridad es un verde claro nítido, sin
+     parecer "gris" al lado del oscuro; alerta y epidémica se mantienen en
+     los tonos institucionales (ámbar y rojo/vino) ya usados en el resto de
+     la plataforma. Validado con scripts/validate_palette.js del skill de
+     visualización: separación por daltonismo y visión normal en verde,
+     con reforzamiento por leyenda/tabla/tooltip (texto) como ya pedía el
+     propio skill para estos casos. Sólo viven aquí (no se tocan tokens.css
+     ni main.css). */
+  :root {
+    --canal-exito: #114B32;
+    --canal-seguridad: #4CAF6D;
+    --canal-alerta: #D9A635;
+    --canal-epidemica: #9B2247;
+    /* Éxito/seguridad/alerta: bandas casi opacas (mismo color que su
+       leyenda) — confirmado por la usuaria, NO TOCAR. Epidémica es el
+       único caso distinto a propósito: su cuadrito de leyenda conserva el
+       rosa/vino intenso (--canal-epidemica, arriba) para identificarla con
+       claridad, pero el ÁREA de fondo de la gráfica usa el mismo matiz a
+       muy baja opacidad — un rosa claro/suave — para que no domine
+       visualmente el canal y la curva de Casos 2026 (negra, con puntos y
+       etiquetas) recupere el protagonismo. Mismo color, distinta
+       intensidad según dónde se use: leyenda intensa, fondo suave. */
+    --canal-exito-fill: rgba(17,75,50,.92);
+    --canal-seguridad-fill: rgba(76,175,109,.90);
+    --canal-alerta-fill: rgba(217,166,53,.88);
+    --canal-epidemica-fill: rgba(155,34,71,.16);
+    --canal-linea: var(--text-primary);
+    --canal-punto-epidemico: var(--c-vino);
+  }
+  /* 6 KPI en una sola fila equilibrada en escritorio, responsiva en
+     pantallas angostas — modificador propio de este módulo, no toca la
+     regla compartida .indicator-grid de styles/main.css (esa la usan
+     también CACU/Mama/Población/Dashboard/Morbilidad). */
+  .kpi-grid-canal { grid-template-columns: repeat(6, 1fr); }
+  @media (max-width: 1180px) { .kpi-grid-canal { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 680px) { .kpi-grid-canal { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 420px) { .kpi-grid-canal { grid-template-columns: 1fr; } }
+  .canal-leyenda { display:flex; flex-wrap:wrap; gap: var(--sp-4); align-items:center; margin: var(--sp-2) 0 var(--sp-3); font-size: var(--fs-body-sm); color: var(--text-secondary); }
+  .canal-leyenda__item { display:flex; align-items:center; gap: 6px; }
+  .canal-leyenda__swatch { width: 14px; height: 14px; border-radius: 3px; display:inline-block; flex: none; }
+  .canal-leyenda__linea { width: 20px; height: 0; border-top: 2px solid var(--canal-linea); display:inline-block; }
+  .canal-controles { display:flex; flex-wrap:wrap; gap: var(--sp-4); align-items:flex-end; margin-bottom: var(--sp-3); }
+  .canal-controles .field { min-width: 220px; }
+  .canal-info-chip { background: var(--bg-sunken); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: var(--sp-2) var(--sp-3); font-size: var(--fs-body-sm); color: var(--text-secondary); }
+  .canal-info-chip strong { color: var(--text-primary); }
+  .zona-pill { display:inline-block; padding: 2px 9px; border-radius: 999px; font-size: var(--fs-caption); font-weight: 600; color: #fff; white-space: nowrap; }
+  .zona-pill--exito { background: var(--canal-exito); }
+  .zona-pill--seguridad { background: var(--canal-seguridad); color: #15362E; }
+  .zona-pill--alerta { background: var(--canal-alerta); color: #4A3200; }
+  .zona-pill--epidemica { background: var(--canal-epidemica); }
+  .zona-pill--na { background: var(--c-gris); color: #fff; }
+
+  /* Selector de padecimiento con buscador (ACT22) — buscador de texto
+     encima de un <select> nativo; al escribir se ocultan las <option>
+     que no coinciden, así el navegador sólo muestra coincidencias al
+     abrir el desplegable (patrón accesible, sin reconstruir un combobox
+     desde cero). Los padecimientos sin canal disponible se listan
+     igual (para que se puedan encontrar por nombre/Epi-Clave) pero se
+     ven atenuados y, al elegirlos, la página muestra un aviso en vez de
+     fabricar una gráfica o cuartiles. */
+  .canal-buscador-wrap { position: relative; }
+  .canal-buscador-wrap input[type="text"] { margin-bottom: 4px; }
+  #canal-select-padecimiento option[data-disponible="false"] { color: var(--text-secondary); font-style: italic; }
+  .canal-buscador-contador { font-size: var(--fs-caption); color: var(--text-secondary); margin-top: 2px; }
+  .canal-aviso-no-disponible { display: none; }
+  .canal-aviso-no-disponible.is-visible { display: block; }
+  .canal-botones { display:flex; gap: var(--sp-3); align-items:center; }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="app-main">
+    <header class="topbar" id="topbar"></header>
+    <main class="app-content">
+
+      <div class="alert alert-warning mb-3">
+        <div>
+          <strong>Herramienta exploratoria.</strong>
+          Actualmente sólo se cuenta con cuatro años históricos completos (2022-2025) como referencia.
+          El canal endémico es una técnica estadística descriptiva: una semana en "zona epidémica" es una
+          señal relativa al propio histórico de Querétaro, <strong>no una declaración oficial de epidemia</strong>.
+          No sustituye a Morbilidad ni a ningún otro módulo validado.
+        </div>
+      </div>
+
+      <div class="canal-controles">
+        <div class="field canal-buscador-wrap" style="min-width:320px;">
+          <label for="canal-buscador-padecimiento">Padecimiento</label>
+          <input type="text" id="canal-buscador-padecimiento" autocomplete="off"
+                 placeholder="Buscar por nombre o Epi-Clave…">
+          <select id="canal-select-padecimiento" aria-label="Seleccionar padecimiento"></select>
+          <div class="canal-buscador-contador" id="canal-buscador-contador"></div>
+        </div>
+        <div class="canal-info-chip" id="canal-info-anio-observado"></div>
+        <div class="canal-info-chip" id="canal-info-periodo-referencia"></div>
+        <div class="canal-botones">
+          <button type="button" class="btn btn-secondary" id="btn-canal-pdf">Generar reporte PDF</button>
+        </div>
+      </div>
+
+      <div class="alert alert-warning canal-aviso-no-disponible" id="canal-aviso-no-disponible"></div>
+
+      <div class="indicator-grid kpi-grid-canal" id="kpi-grid"></div>
+
+      <div class="panel-grid">
+        <section class="card col-span-12">
+          <div class="section-header">
+            <div>
+              <div class="section-header__title" id="chart-titulo">Canal endémico exploratorio</div>
+              <div class="section-header__subtitle" id="chart-subtitulo">Querétaro, 2022-2026</div>
+            </div>
+          </div>
+          <div class="canal-leyenda">
+            <span class="canal-leyenda__item"><span class="canal-leyenda__swatch" style="background:var(--canal-exito)"></span>Zona de éxito (≤ Q1)</span>
+            <span class="canal-leyenda__item"><span class="canal-leyenda__swatch" style="background:var(--canal-seguridad)"></span>Zona de seguridad (&gt; Q1 y ≤ mediana)</span>
+            <span class="canal-leyenda__item"><span class="canal-leyenda__swatch" style="background:var(--canal-alerta)"></span>Zona de alerta (&gt; mediana y ≤ Q3)</span>
+            <span class="canal-leyenda__item"><span class="canal-leyenda__swatch" style="background:var(--canal-epidemica)"></span>Zona epidémica (&gt; Q3)</span>
+            <span class="canal-leyenda__item"><span class="canal-leyenda__linea"></span>Casos 2026 (observado)</span>
+          </div>
+          <div style="height:440px;"><canvas id="chart-canal"></canvas></div>
+          <p class="text-muted mt-2" style="font-size:var(--fs-caption);" id="nota-semana53">
+            La semana epidemiológica 53 no se incluye en esta gráfica (sólo el año 2025 la tuvo entre los 4 años de referencia,
+            así que Q1/Mediana/Q3 no se pueden calcular con más de un año) — se documenta aparte en la tabla de abajo.
+          </p>
+        </section>
+
+        <section class="card col-span-12">
+          <div class="section-header">
+            <div>
+              <div class="section-header__title">Datos semanales y clasificación de zonas</div>
+              <div class="section-header__subtitle">Referencia 2022-2025 · observado 2026</div>
+            </div>
+          </div>
+          <div class="table-wrap" style="max-height:520px; overflow-y:auto;">
+            <table>
+              <thead><tr><th>SE</th><th>Q1 (2022-2025)</th><th>Mediana (Q2)</th><th>Q3 (2022-2025)</th><th>Casos 2026</th><th>Zona</th></tr></thead>
+              <tbody id="tabla-semanas-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card col-span-6">
+          <div class="section-header">
+            <div>
+              <div class="section-header__title">Totales anuales</div>
+              <div class="section-header__subtitle">Casos por año, Epi-Clave seleccionada</div>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Año</th><th>Casos</th><th>Tipo</th></tr></thead>
+              <tbody id="tabla-totales-anio-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card col-span-6">
+          <div class="section-header">
+            <div>
+              <div class="section-header__title">Distribución de semanas 2026</div>
+              <div class="section-header__subtitle" id="subt-distribucion-zonas">Por zona del canal exploratorio</div>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Zona</th><th>Semanas</th></tr></thead>
+              <tbody id="tabla-resumen-zonas-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card col-span-12">
+          <div class="section-header">
+            <div>
+              <div class="section-header__title">Nota metodológica</div>
+            </div>
+          </div>
+          <div id="nota-metodologica" style="font-size:var(--fs-body-sm); color:var(--text-secondary); line-height:1.6;"></div>
+        </section>
+      </div>
+
+      <div class="methodology-footer">
+        <span>Fuente: <span id="source-label"></span></span>
+        <span>SNSP | Inteligencia Digital v<span id="version-tag-module"></span></span>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="../config/config.js"></script>
+<script src="../auth/auth.js"></script>
+<script src="../data/real/canal_endemico_2022_2026.js"></script>
+<script src="../components/sidebar.js"></script>
+<script src="../components/topbar.js"></script>
+<script src="../components/indicatorCard.js"></script>
+<script src="../components/charts.js"></script>
+<script src="../modules/canalEndemicoModuleView.js"></script>
+<script>
+  SNSP_renderCanalEndemicoModulePage({});
+</script>
+</body>
+</html>

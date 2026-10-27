@@ -7,7 +7,11 @@
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="../styles/tokens.css">
 <link rel="stylesheet" href="../styles/main.css">
+<link rel="stylesheet" href="../styles/poblacion-historica.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<!-- ACT26c: generador del reporte ejecutivo PDF (mismas versiones que Morbilidad / Canal endémico) -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
 
@@ -16,6 +20,210 @@
   <div class="app-main">
     <header class="topbar" id="topbar"></header>
     <main class="app-content">
+
+      <!-- ACT26: dos secciones claramente separadas (fuentes distintas, nunca se mezclan) -->
+      <div class="ph-tabs" role="tablist" aria-label="Secciones del módulo de Población">
+        <button class="ph-tab" role="tab" id="ph-tab-suive" aria-controls="ph-panel-suive" aria-selected="true">Población histórica SUIVE 2017–2026<small>Sexo y edad, mapa, comparativo, reporte PDF</small></button>
+        <button class="ph-tab" role="tab" id="ph-tab-asis" aria-controls="ph-panel-asis" aria-selected="false" tabindex="-1">Población por localidad 2025<small>Padrón ASIS (sin cambios)</small></button>
+      </div>
+
+      <section id="ph-panel-suive" role="tabpanel" aria-labelledby="ph-tab-suive">
+        <div class="ph-head">
+          <div>
+            <div class="ph-head__title">Población histórica SUIVE 2017–2026</div>
+            <div class="ph-head__ctx" id="ph-contexto"></div>
+          </div>
+          <div class="ph-head__acciones">
+            <span class="ph-badge" title="Procedencia y fuente metodológica pendientes de confirmación documental">Fuente: base de población utilizada en SUIVE Querétaro · versión de pruebas</span>
+            <button type="button" class="btn btn-primary ph-btn-pdf" id="ph-btn-pdf" title="Genera un PDF con el año, el área y los años del comparativo seleccionados">
+              <span aria-hidden="true">&#8681;</span> Descargar reporte poblacional
+            </button>
+            <span class="ph-pdf-estado" id="ph-pdf-estado" role="status" aria-live="polite"></span>
+          </div>
+        </div>
+
+        <div class="ph-filtros" role="group" aria-label="Filtros de población histórica">
+          <div class="ph-campo ph-campo--anio">
+            <label for="ph-f-anio">Año</label>
+            <select id="ph-f-anio"></select>
+          </div>
+          <div class="ph-campo">
+            <label for="ph-f-js">Jurisdicción sanitaria</label>
+            <select id="ph-f-js"></select>
+          </div>
+          <div class="ph-campo">
+            <label for="ph-f-mun">Municipio</label>
+            <select id="ph-f-mun"></select>
+          </div>
+          <div class="ph-campo" style="flex:0 0 auto; min-width:0;">
+            <label>Sexo y edad</label>
+            <div class="ph-seg" role="group" aria-label="Unidad de la gráfica por sexo y grupo de edad">
+              <button type="button" data-ph-modo="abs" aria-pressed="true">Absolutos</button>
+              <button type="button" data-ph-modo="pct" aria-pressed="false">%</button>
+            </div>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm ph-limpiar" id="ph-f-limpiar">Limpiar filtros</button>
+        </div>
+
+        <div class="ph-kpi-titulo">Volumen de población</div>
+        <div class="indicator-grid" id="ph-kpis"></div>
+        <div class="ph-kpi-titulo">Estructura poblacional</div>
+        <div class="indicator-grid ph-kpis-estructura" id="ph-kpis-estructura"></div>
+
+        <div class="ph-grid">
+          <section class="ph-card ph-card--protagonista ph-c7">
+            <div class="ph-card__head">
+              <div>
+                <div class="ph-card__title" id="ph-sexoedad-titulo">Población por sexo y grupo de edad</div>
+                <div class="ph-card__sub" id="ph-sexoedad-sub"></div>
+              </div>
+            </div>
+            <div class="ph-sexoedad-box" id="ph-sexoedad-box" style="height:560px;"><canvas id="ph-chart-sexoedad" aria-label="Población por sexo y grupo de edad, barras horizontales agrupadas"></canvas></div>
+            <div class="ph-nota-edad"><strong>Nota metodológica:</strong> se muestran los 11 grupos de edad de la base tal como vienen, sin estimar quinquenios faltantes. Sus amplitudes son desiguales (0 años = 1 año; 1–4 = 4; 25–44 = 20; 50–59 = 10; 65 y más = abierto; el resto, 5 años), por lo que las barras no son comparables entre sí como si fueran quinquenios: una barra más larga puede deberse a que el intervalo abarca más años.</div>
+          </section>
+
+          <section class="ph-card ph-c5">
+            <div class="ph-card__head">
+              <div>
+                <div class="ph-card__title" id="ph-mapa-titulo">Población por municipio</div>
+                <div class="ph-card__sub">Límites municipales oficiales · pasa el cursor para ver el detalle, clic para filtrar</div>
+              </div>
+            </div>
+            <div class="ph-mapa-layout">
+              <div id="ph-mapa"></div>
+              <div id="ph-mapa-leyenda"></div>
+            </div>
+          </section>
+
+          <!-- ACT26c.1: tabla de los 11 grupos (plegable, ancho completo) -->
+          <section class="ph-card ph-c12 ph-te-card">
+            <details class="ph-te" id="ph-te">
+              <summary>Ver tabla de los 11 grupos: población, % del total y % de hombres y mujeres dentro de cada grupo</summary>
+              <div class="ph-te__scroll" id="ph-tabla-edad"></div>
+            </details>
+          </section>
+
+          <section class="ph-card ph-c7">
+            <div class="ph-card__head">
+              <div>
+                <div class="ph-card__title" id="ph-evol-titulo">Evolución poblacional 2017–2026</div>
+                <div class="ph-card__sub" id="ph-evol-sub"></div>
+              </div>
+              <div class="ph-seg" role="group" aria-label="Series de la evolución">
+                <button type="button" data-ph-evol="total" aria-pressed="true">Total</button>
+                <button type="button" data-ph-evol="sexo" aria-pressed="false">Por sexo</button>
+              </div>
+            </div>
+            <div style="height:300px;"><canvas id="ph-chart-evol" aria-label="Evolución anual de la población"></canvas></div>
+          </section>
+
+          <section class="ph-card ph-c5">
+            <div class="ph-card__head">
+              <div>
+                <div class="ph-card__title">Resumen demográfico</div>
+                <div class="ph-card__sub">Sumas exactas de los intervalos de la fuente, del lugar y año seleccionados</div>
+              </div>
+            </div>
+            <div id="ph-composicion"></div>
+          </section>
+
+          <!-- ACT26b: Comparativo poblacional por años (selector de años independiente) -->
+          <section class="ph-card ph-c12 ph-cmp" id="ph-cmp">
+            <div class="ph-card__head">
+              <div>
+                <div class="ph-card__title" id="ph-cmp-titulo">Comparativo poblacional por años</div>
+                <div class="ph-card__sub" id="ph-cmp-sub">Misma área geográfica en distintos años · cada barra es la población de su propio año (los años no se suman) · la población total ya incluye a mujeres y hombres</div>
+              </div>
+            </div>
+            <div class="ph-cmp__controles">
+              <div class="ph-cmp__grupo">
+                <div class="ph-cmp__etq" id="ph-cmp-anios-etq">Años a comparar <span id="ph-cmp-conteo"></span></div>
+                <div class="ph-cmp__chips" id="ph-cmp-anios" role="group" aria-labelledby="ph-cmp-anios-etq"></div>
+                <div class="ph-cmp__acciones">
+                  <button type="button" class="ph-cmp__link" id="ph-cmp-todos">Mostrar todos</button>
+                  <button type="button" class="ph-cmp__link" id="ph-cmp-ninguno">Quitar todos</button>
+                  <button type="button" class="ph-cmp__link" id="ph-cmp-ultimos">Últimos 5</button>
+                </div>
+              </div>
+              <div class="ph-cmp__grupo ph-cmp__grupo--series">
+                <div class="ph-cmp__etq" id="ph-cmp-series-etq">Comparar</div>
+                <div class="ph-cmp__chips" id="ph-cmp-series" role="group" aria-labelledby="ph-cmp-series-etq">
+                  <button type="button" class="ph-chip ph-chip--total" data-ph-serie="total" aria-pressed="true">Población total</button>
+                  <button type="button" class="ph-chip ph-chip--mujeres" data-ph-serie="mujeres" aria-pressed="true">Mujeres</button>
+                  <button type="button" class="ph-chip ph-chip--hombres" data-ph-serie="hombres" aria-pressed="true">Hombres</button>
+                </div>
+              </div>
+            </div>
+            <div class="ph-cmp__ambito" id="ph-cmp-ambito"></div>
+            <div class="ph-cmp__vacio" id="ph-cmp-vacio" hidden>Selecciona al menos un año y un indicador para mostrar el comparativo.</div>
+            <div class="ph-cmp__box" id="ph-cmp-box" style="height:400px;"><canvas id="ph-chart-cmp" aria-label="Comparativo poblacional por años, barras agrupadas"></canvas></div>
+            <div class="ph-cmp__tabla-wrap" id="ph-cmp-tabla"></div>
+            <div class="ph-nota-edad" id="ph-cmp-nota"><strong>Población total = mujeres + hombres:</strong> son tres vistas de la misma población, no tres poblaciones independientes; no deben sumarse entre sí. La diferencia y la variación de cada fila se calculan contra el <strong>año seleccionado inmediatamente anterior</strong> (columna "Referencia"). Si los años no son consecutivos, la variación abarca varios años y no es una tasa anual. El año del filtro superior no afecta este comparativo; Jurisdicción y Municipio sí.</div>
+          </section>
+
+          <!-- ACT26c: Ranking municipal (5 más / 5 menos poblados) -->
+          <section class="ph-card ph-c6" id="ph-ranking">
+            <div class="ph-card__head">
+              <div>
+                <div class="ph-card__title" id="ph-rank-titulo">Ranking municipal</div>
+                <div class="ph-card__sub" id="ph-rank-sub"></div>
+              </div>
+              <div class="ph-seg" role="group" aria-label="Tipo de ranking">
+                <button type="button" data-ph-rank="top" aria-pressed="true">5 más poblados</button>
+                <button type="button" data-ph-rank="bottom" aria-pressed="false">5 menos poblados</button>
+              </div>
+            </div>
+            <div id="ph-rank-box" style="height:260px;"><canvas id="ph-chart-rank" aria-label="Ranking municipal por población"></canvas></div>
+            <div class="ph-nota-edad" id="ph-rank-nota"></div>
+          </section>
+
+          <section class="ph-card ph-c6">
+            <div class="ph-card__head">
+              <div>
+                <div class="ph-card__title" id="ph-js-titulo">Población por jurisdicción sanitaria</div>
+                <div class="ph-card__sub">Las 4 jurisdicciones de Querétaro · habitantes y % del estado</div>
+              </div>
+            </div>
+            <div style="height:280px;"><canvas id="ph-chart-js" aria-label="Población por jurisdicción sanitaria"></canvas></div>
+          </section>
+
+          <section class="ph-card ph-c12">
+            <div class="ph-card__head">
+              <div>
+                <div class="ph-card__title" id="ph-mun-titulo">Población por municipio</div>
+                <div class="ph-card__sub" id="ph-mun-sub"></div>
+              </div>
+            </div>
+            <div id="ph-mun-box" style="height:600px;"><canvas id="ph-chart-mun" aria-label="Población por municipio"></canvas></div>
+          </section>
+
+          <section class="ph-card ph-c12">
+            <details class="ph-notas" open>
+              <summary>Notas metodológicas y de calidad de datos</summary>
+              <ul>
+                <li><strong>Fuente:</strong> base de población utilizada en SUIVE Querétaro, 2017–2026 (BASE_POBLACION_SUIVE_QRO_2017_2026_PLANA.xlsx, 3,960 registros). Su procedencia y fuente metodológica están <strong>pendientes de confirmación documental</strong>; no se atribuye a CONAPO ni a ninguna otra institución.</li>
+                <li><strong>Independiente del padrón ASIS 2025:</strong> son fuentes distintas, con totales municipales diferentes; se consultan en pestañas separadas y nunca se combinan.</li>
+                <li><strong>Un año a la vez:</strong> los indicadores, la gráfica por sexo y edad, el ranking y el mapa corresponden al año seleccionado; ninguna cifra suma poblaciones de varios años. La evolución y el comparativo por años muestran la población de cada año por separado.</li>
+                <li><strong>Decimales:</strong> la fuente trae decimales por ruido de exportación (±0.000001) y por el prorrateo del grupo 0–4 entre "0 años" y "1–4" (su suma es entera). Se conservan los valores originales y sólo se redondea al mostrar.</li>
+                <li><strong>Coherencia con Morbilidad:</strong> 2022–2026 coincide celda por celda con la población que usa el módulo de Morbilidad como denominador de tasas.</li>
+                <li><strong>Mapa:</strong> límites de Municipios_Queretaro_18 (proyecto QGIS/Power BI), relacionados con la base por clave de municipio (CVEGEO 22001–22018), no por nombre. Geometría simplificada sólo para visualización web. Colores por quintiles de los 18 municipios.</li>
+                <li><strong>Población de 65 años y más:</strong> corresponde exactamente al grupo "De 65 y más años" de la base (grupo abierto, sin desagregar).</li>
+                <li><strong>Ranking municipal:</strong> en el estado compara los 18 municipios; con una jurisdicción, sus municipios; con un municipio, los de su jurisdicción (el seleccionado se resalta) e indica su lugar en la jurisdicción y en el estado.</li>
+                <li><strong>Reporte PDF:</strong> se genera en el navegador con el año, el área y los años del comparativo seleccionados en ese momento.</li>
+                <li><strong>Versión de pruebas:</strong> prototipo para demostración; no publicado en GitHub ni en producción.</li>
+              </ul>
+            </details>
+          </section>
+        </div>
+
+        <div class="methodology-footer">
+          <span>Fuente: base de población utilizada en SUIVE Querétaro, 2017–2026 · Límites: Municipios_Queretaro_18 · <a href="metodologia.html">Ver apartado metodológico</a></span>
+          <span>SNSP | Inteligencia Digital — versión de pruebas</span>
+        </div>
+      </section>
+
+      <!-- Se deja visible en la carga para que sus gráficas se dibujen con tamaño real; el script de pestañas lo oculta enseguida. -->
+      <section id="ph-panel-asis" role="tabpanel" aria-labelledby="ph-tab-asis">
 
       <div class="card mb-4" style="padding:var(--sp-4);">
         <div class="section-header" style="margin-bottom:var(--sp-3);">
@@ -111,6 +319,7 @@
         <span>Fuente: <span id="source-label"></span> · <a href="metodologia.html">Ver apartado metodológico</a></span>
         <span>SNSP | Inteligencia Digital v<span id="version-tag-module"></span></span>
       </div>
+      </section>
     </main>
   </div>
 </div>
@@ -129,8 +338,52 @@
 <script src="../components/filterBar.js"></script>
 <script src="../components/mapQueretaro.js"></script>
 <script src="../modules/poblacionModuleView.js"></script>
+<!-- ACT26: sección histórica SUIVE (archivos nuevos) -->
+<script src="../data/real/poblacion_historica_2017_2026.js"></script>
+<script src="../data/real/geo_municipios_queretaro.js"></script>
+<script src="../services/poblacionHistoricaDataService.js"></script>
+<script src="../components/pyramidChart.js"></script>
+<script src="../components/mapaCoropleticoQro.js"></script>
+<script src="../modules/poblacionReportePDF.js"></script>
+<script src="../modules/poblacionHistoricaModuleView.js"></script>
 <script>
   SNSP_renderPoblacionModulePage({});
+  // ACT26 — sección histórica y pestañas. La sección ASIS 2025 se sigue
+  // renderizando exactamente igual que antes (arriba).
+  window.SNSP_PH_VIEW = SNSP_renderPoblacionHistoricaSection({ containerId: "ph-panel-suive" });
+  (function () {
+    var subtitulos = {
+      suive: "Histórico SUIVE 2017–2026 — por jurisdicción y municipio",
+      asis: "Padrón poblacional 2025 — por municipio y localidad",
+    };
+    var tabs = { suive: document.getElementById("ph-tab-suive"), asis: document.getElementById("ph-tab-asis") };
+    function activar(cual, foco) {
+      Object.keys(tabs).forEach(function (k) {
+        var on = k === cual;
+        tabs[k].setAttribute("aria-selected", String(on));
+        tabs[k].tabIndex = on ? 0 : -1;
+        document.getElementById(tabs[k].getAttribute("aria-controls")).hidden = !on;
+      });
+      var sub = document.querySelector("#topbar .section-header__subtitle");
+      if (sub) sub.textContent = subtitulos[cual];
+      // Las gráficas creadas con la pestaña oculta se reajustan al mostrarse.
+      // Sólo las del panel que se acaba de mostrar (redimensionar las ocultas las deja en 0x0).
+      var panel = document.getElementById(tabs[cual].getAttribute("aria-controls"));
+      requestAnimationFrame(function () {
+        if (window.Chart && Chart.instances) Object.values(Chart.instances).forEach(function (c) {
+          if (panel.contains(c.canvas)) { try { c.resize(); c.update("none"); } catch (e) {} }
+        });
+      });
+      if (foco) tabs[cual].focus();
+      try { history.replaceState(null, "", cual === "asis" ? "#localidades-2025" : "#historico-suive"); } catch (e) {}
+    }
+    tabs.suive.addEventListener("click", function () { activar("suive"); });
+    tabs.asis.addEventListener("click", function () { activar("asis"); });
+    document.querySelector(".ph-tabs").addEventListener("keydown", function (e) {
+      if (e.key === "ArrowRight" || e.key === "ArrowLeft") activar(tabs.suive.getAttribute("aria-selected") === "true" ? "asis" : "suive", true);
+    });
+    activar(location.hash === "#localidades-2025" ? "asis" : "suive");
+  })();
 </script>
 </body>
 </html>

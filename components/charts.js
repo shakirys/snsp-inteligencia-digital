@@ -160,6 +160,9 @@ var SNSP_VALUE_LABELS_PLUGIN = {
     const formatter = cfg.formatter || SNSP_formatNumber;
     const categoryCount = (chart.data.labels || []).length;
     const fontSize = _snspLabelFont(categoryCount, cfg.fontSize, cfg.fontWeight);
+    const fontPxMatch = String(fontSize).match(/(\d+)px/);
+    const fontPx = fontPxMatch ? parseInt(fontPxMatch[1], 10) : 11;
+    const alturaTexto = fontPx + 4; // alto aproximado de una línea de etiqueta, para el control de colisiones
 
     ctx.save();
     ctx.fillStyle = textColor;
@@ -167,34 +170,70 @@ var SNSP_VALUE_LABELS_PLUGIN = {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
+    // ---------------------------------------------------------------
+    // ACT24 — control de colisiones entre etiquetas: cada etiqueta que
+    // se dibuja (de barra o de línea) registra aquí su recuadro
+    // aproximado (medido con el ancho real del texto, no sólo el
+    // grosor de la barra); antes de dibujar la siguiente se revisa que
+    // no se encime con ninguna ya colocada en ESTA gráfica. Cuando de
+    // verdad no hay forma de acomodarla sin encimarse, se omite esa
+    // etiqueta puntual (el valor exacto sigue disponible en el tooltip
+    // y, en las secciones que incluyen tabla, en la tabla) en vez de
+    // mostrar texto ilegible o traslapado — independientemente de
+    // cuántas series/años estén seleccionados.
+    // ---------------------------------------------------------------
+    const colocadas = [];
+    function _solapan(a, b, pad) {
+      pad = pad === undefined ? 1 : pad;
+      return !(a.right + pad < b.left || b.right + pad < a.left || a.bottom + pad < b.top || b.bottom + pad < a.top);
+    }
+    function _cabe(bbox) {
+      return !colocadas.some((o) => _solapan(bbox, o));
+    }
+    function _bboxCentro(x, y, texto) {
+      const w = ctx.measureText(texto).width;
+      return { left: x - w / 2 - 2, right: x + w / 2 + 2, top: y - alturaTexto / 2, bottom: y + alturaTexto / 2 };
+    }
+    function _bboxIzquierda(x, y, texto) {
+      const w = ctx.measureText(texto).width;
+      return { left: x - 2, right: x + w + 4, top: y - alturaTexto / 2, bottom: y + alturaTexto / 2 };
+    }
+    function _bboxDerecha(x, y, texto) {
+      const w = ctx.measureText(texto).width;
+      return { left: x - w - 4, right: x + 2, top: y - alturaTexto / 2, bottom: y + alturaTexto / 2 };
+    }
+
+    // ---- Dona: sin cambios (las etiquetas van dentro de cada rebanada,
+    // no compiten por espacio entre sí del mismo modo que barras/líneas) ----
     chart.data.datasets.forEach((dataset, dsIndex) => {
       const meta = chart.getDatasetMeta(dsIndex);
       if (!meta || meta.hidden) return;
-      const isBar = meta.type === "bar";
-      const isLine = meta.type === "line";
       const isDoughnut = meta.type === "doughnut" || meta.type === "pie";
+      if (!isDoughnut) return;
+      const total = dataset.data.reduce((a, b) => a + (b || 0), 0);
+      meta.data.forEach((arc, i) => {
+        const raw = dataset.data[i];
+        if (!raw || !total) return;
+        const pct = (raw / total) * 100;
+        // Slices angulares muy pequeños no llevan etiqueta: la leyenda
+        // (ya enriquecida con valor y %) cumple esa función — ver
+        // SNSP_renderDoughnut. Evita texto ilegible amontonado.
+        const angulo = arc.endAngle - arc.startAngle;
+        if (angulo < 0.26) return;
+        const mid = (arc.startAngle + arc.endAngle) / 2;
+        const r = arc.innerRadius + (arc.outerRadius - arc.innerRadius) * 0.62;
+        const x = arc.x + Math.cos(mid) * r;
+        const y = arc.y + Math.sin(mid) * r;
+        ctx.fillStyle = "#FBF8F1";
+        ctx.fillText(SNSP_formatPercent(pct), x, y);
+        ctx.fillStyle = textColor;
+      });
+    });
 
-      if (isDoughnut) {
-        const total = dataset.data.reduce((a, b) => a + (b || 0), 0);
-        meta.data.forEach((arc, i) => {
-          const raw = dataset.data[i];
-          if (!raw || !total) return;
-          const pct = (raw / total) * 100;
-          // Slices angulares muy pequeños no llevan etiqueta: la leyenda
-          // (ya enriquecida con valor y %) cumple esa función — ver
-          // SNSP_renderDoughnut. Evita texto ilegible amontonado.
-          const angulo = arc.endAngle - arc.startAngle;
-          if (angulo < 0.26) return;
-          const mid = (arc.startAngle + arc.endAngle) / 2;
-          const r = arc.innerRadius + (arc.outerRadius - arc.innerRadius) * 0.62;
-          const x = arc.x + Math.cos(mid) * r;
-          const y = arc.y + Math.sin(mid) * r;
-          ctx.fillStyle = "#FBF8F1";
-          ctx.fillText(SNSP_formatPercent(pct), x, y);
-          ctx.fillStyle = textColor;
-        });
-        return;
-      }
+    // ---- Barras (una pasada por dataset, en el orden de siempre) ----
+    chart.data.datasets.forEach((dataset, dsIndex) => {
+      const meta = chart.getDatasetMeta(dsIndex);
+      if (!meta || meta.hidden || meta.type !== "bar") return;
 
       meta.data.forEach((el, i) => {
         const raw = dataset.data[i];
@@ -211,48 +250,136 @@ var SNSP_VALUE_LABELS_PLUGIN = {
           label = SNSP_formatNumber(raw);
         }
 
-        if (isBar) {
-          const horizontal = chart.options.indexAxis === "y";
-          // Evita amontonar etiquetas cuando la barra es demasiado
-          // angosta para el texto (muchas categorías a la vez): se omite
-          // esa etiqueta puntual en vez de superponerla. Ver aviso de
-          // legibilidad en la entrega.
-          const grosor = horizontal ? el.height : el.width;
-          if (grosor && grosor < 9) {
-            SNSP_CHART_LABEL_SKIPS.push(chart.canvas.id);
-            return;
-          }
-          if (horizontal) {
-            ctx.textAlign = "left";
-            ctx.fillText(label, el.x + 6, el.y);
-          } else {
-            ctx.textAlign = "center";
-            ctx.fillText(label, el.x, el.y - 10);
-          }
-        } else if (isLine) {
-          if (meta.data.length > 20) return; // demasiados puntos: se deja sólo el tooltip
-          ctx.textAlign = "center";
-          // ACT15 (opcional, retrocompatible): cfg.pointLabelSplit reparte
-          // las series ARRIBA/ABAJO del punto en vez de apilarlas todas
-          // arriba — pensado para comparativos de 2 años (Morbilidad —
-          // Tendencia por año/mes): la serie más temprana (dsIndex par,
-          // típicamente 2025) queda arriba, la más reciente (dsIndex
-          // impar, típicamente 2026) queda abajo, evitando el traslape
-          // que había antes con ambas etiquetas apiladas del mismo lado.
-          // Sin pasar la opción, el comportamiento es EXACTAMENTE el de
-          // siempre (todas arriba, cada dataset un poco más arriba que el
-          // anterior) — ningún otro módulo que no la pase se ve afectado.
-          if (cfg.pointLabelSplit) {
-            const par = Math.floor(dsIndex / 2);
-            const arriba = dsIndex % 2 === 0;
-            const offset = 10 + par * 13;
-            ctx.fillText(label, el.x, arriba ? el.y - offset : el.y + offset);
-          } else {
-            ctx.fillText(label, el.x, el.y - 12 - dsIndex * 13);
-          }
+        const horizontal = chart.options.indexAxis === "y";
+        // Evita amontonar etiquetas cuando la barra es demasiado
+        // angosta para el texto (muchas categorías a la vez): se omite
+        // esa etiqueta puntual en vez de superponerla. Ver aviso de
+        // legibilidad en la entrega.
+        const grosor = horizontal ? el.height : el.width;
+        if (grosor && grosor < 9) {
+          SNSP_CHART_LABEL_SKIPS.push(chart.canvas.id);
+          return;
         }
+
+        const x = horizontal ? el.x + 6 : el.x;
+        const y = horizontal ? el.y : el.y - 10;
+        const bbox = horizontal ? _bboxIzquierda(x, y, label) : _bboxCentro(x, y, label);
+        // ACT24: además del grosor de la barra, ahora se revisa el ancho
+        // REAL del texto contra las etiquetas vecinas ya colocadas (p. ej.
+        // barras agrupadas muy juntas, como "Comparativo por mes y año"
+        // con varios años) — si de verdad no caben una junto a otra sin
+        // encimarse, se omite en vez de traslaparlas.
+        if (!_cabe(bbox)) {
+          SNSP_CHART_LABEL_SKIPS.push(chart.canvas.id);
+          return;
+        }
+        ctx.textAlign = horizontal ? "left" : "center";
+        ctx.fillText(label, x, y);
+        colocadas.push(bbox);
       });
     });
+
+    // ---- Líneas: una pasada por COLUMNA (mismo mes/x), no por dataset,
+    // para poder acomodar entre sí las etiquetas de las distintas series
+    // que comparten esa columna — antes cada serie usaba un desplazamiento
+    // vertical fijo por índice de dataset, lo que seguía encimándose en
+    // cuanto había 3+ años seleccionados o valores cercanos entre sí
+    // (p. ej. "Tendencia por año/mes" con 2022-2026). Ahora se calcula la
+    // posición en pantalla real de cada punto, se ordenan de abajo hacia
+    // arriba y cada etiqueta se acomoda lo más cerca posible de su propio
+    // punto sin encimarse con la que ya quedó fija justo debajo; si de
+    // verdad no cabe sin encimarse o sin alejarse demasiado de su punto,
+    // se omite (el valor exacto sigue disponible en el tooltip y en la
+    // tabla de la sección).
+    const datasetsLinea = [];
+    chart.data.datasets.forEach((dataset, dsIndex) => {
+      const meta = chart.getDatasetMeta(dsIndex);
+      if (meta && !meta.hidden && meta.type === "line") datasetsLinea.push({ dataset, dsIndex, meta });
+    });
+    if (datasetsLinea.length) {
+      const nPuntos = datasetsLinea.reduce((m, d) => Math.max(m, d.meta.data.length), 0);
+      if (nPuntos <= 20) { // misma regla de siempre: demasiados puntos → sólo tooltip
+        for (let i = 0; i < nPuntos; i++) {
+          const candidatos = datasetsLinea.map(({ dataset, meta }) => {
+            const el = meta.data[i];
+            const raw = dataset.data[i];
+            if (!el || raw === null || raw === undefined) return null;
+            if (cfg.skipZero && !raw) return null;
+            let label;
+            try {
+              label = typeof formatter === "function" ? formatter(raw, dataset, i) : SNSP_formatNumber(raw);
+            } catch (e) {
+              label = SNSP_formatNumber(raw);
+            }
+            return { x: el.x, yPunto: el.y, label };
+          }).filter(Boolean);
+          if (!candidatos.length) continue;
+
+          // De abajo hacia arriba en pantalla (Y mayor primero): así cada
+          // etiqueta sólo tiene que evitar la que ya quedó fija justo
+          // debajo de ella (y cualquier otra ya colocada en la gráfica).
+          candidatos.sort((a, b) => b.yPunto - a.yPunto);
+          // ACT24 — límites del área de graficado: una etiqueta centrada en
+          // la PRIMERA categoría puede invadir la columna de las etiquetas
+          // del eje Y (a su izquierda), y una centrada en la ÚLTIMA puede
+          // salirse por la derecha del lienzo. Ninguna de las dos invasiones
+          // se detectaba antes porque el control de colisiones sólo
+          // comparaba etiquetas de datos entre sí, nunca contra el área de
+          // graficado — por eso "Tendencia por año/mes" seguía mostrando una
+          // etiqueta de enero encimada con el rótulo "70,000" del eje,
+          // aunque las etiquetas de las distintas series ya no se encimaran
+          // entre sí.
+          const areaGraf = chart.chartArea || { left: 0, right: chart.width || chart.canvas.width };
+          // ACT24 — además de otras etiquetas, cada punto (el círculo que
+          // marca el dato en la línea) también debe tratarse como un
+          // obstáculo: la posición preferida ("12px arriba del punto") deja
+          // apenas 1px libre sobre el radio real del marcador (5px), así
+          // que al rasterizar el PDF el texto queda tocando o tapado por su
+          // propio punto (o por el de una serie vecina muy cercana) — se
+          // veía, por ejemplo, en "70,187"/"69,481" de febrero o "61,178"
+          // de julio. _cabe ahora revisa también contra estos círculos.
+          const RADIO_PUNTO = 6; // ligeramente mayor al pointRadius:5 real, para dar un margen de separación visible
+          const obstaculosPuntos = candidatos.map((c) => ({
+            left: c.x - RADIO_PUNTO, right: c.x + RADIO_PUNTO, top: c.yPunto - RADIO_PUNTO, bottom: c.yPunto + RADIO_PUNTO,
+          }));
+          function _cabeLinea(bbox) {
+            if (obstaculosPuntos.some((o) => _solapan(bbox, o))) return false;
+            return _cabe(bbox);
+          }
+          candidatos.forEach((c) => {
+            let yEtiqueta = c.yPunto - 12; // posición preferida: justo arriba del punto, igual que antes
+            let align = "center";
+            let bbox = _bboxCentro(c.x, yEtiqueta, c.label);
+            if (bbox.left < areaGraf.left) {
+              align = "left";
+              bbox = _bboxIzquierda(c.x, yEtiqueta, c.label);
+            } else if (bbox.right > areaGraf.right) {
+              align = "right";
+              bbox = _bboxDerecha(c.x, yEtiqueta, c.label);
+            }
+            const _bboxSegunAlineacion = (x, y, texto) =>
+              align === "left" ? _bboxIzquierda(x, y, texto) : align === "right" ? _bboxDerecha(x, y, texto) : _bboxCentro(x, y, texto);
+            let intentos = 0;
+            while (!_cabeLinea(bbox) && intentos < 5) {
+              yEtiqueta -= alturaTexto;
+              bbox = _bboxSegunAlineacion(c.x, yEtiqueta, c.label);
+              intentos++;
+            }
+            const distanciaAlPunto = c.yPunto - yEtiqueta;
+            if (!_cabeLinea(bbox) || distanciaAlPunto > alturaTexto * 4) {
+              // No cabe sin encimarse, o quedaría demasiado lejos de su
+              // propio punto para seguir siendo clara: mejor omitirla.
+              SNSP_CHART_LABEL_SKIPS.push(chart.canvas.id);
+              return;
+            }
+            ctx.textAlign = align;
+            ctx.fillText(c.label, c.x, yEtiqueta);
+            colocadas.push(bbox);
+          });
+        }
+      }
+    }
+
     ctx.restore();
   },
 };
@@ -475,7 +602,16 @@ function SNSP_renderPopulationPyramid(canvasId, bandas, mujeres, hombres, opts) 
     },
   };
 
-  const absFormatter = (raw) => SNSP_formatNumber(Math.abs(raw));
+  // ACT26 (corrección mínima de un error preexistente de ACT25): Chart.js
+  // trata las funciones dentro de options.plugins como opciones
+  // "scriptable" y las invoca con un objeto de contexto al resolverlas;
+  // Math.abs(contexto) lanzaba TypeError, lo que además detenía el ciclo de
+  // dibujo compartido de Chart.js. Si se recibe algo que no es número, se
+  // devuelve la propia función para que el plugin la reciba intacta.
+  const absFormatter = function (raw) {
+    if (typeof raw !== "number") return absFormatter;
+    return SNSP_formatNumber(Math.abs(raw));
+  };
   const options = SNSP_baseChartOptions(extra, Object.assign({}, opts, { formatter: absFormatter }));
   options.plugins.tooltip.callbacks = {
     label: (item) => `${item.dataset.label}: ${SNSP_formatNumber(Math.abs(item.raw))}`,

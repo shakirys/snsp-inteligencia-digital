@@ -1,0 +1,387 @@
+{
+  "generado": "2026-10-27",
+  "archivo": "BASE_POBLACION_SUIVE_QRO_2017_2026_PLANA.xlsx",
+  "registros": 3960,
+  "completitud": {
+    "esperado": 3960,
+    "encontrado": 3960,
+    "ok": true
+  },
+  "nulos": 0,
+  "duplicados": 0,
+  "conciliacion_claves": [
+    {
+      "cve": "001",
+      "suive_texto": "001 Amealco",
+      "suive_js": 2,
+      "geo_nombre": "Amealco de Bonfil",
+      "geo_cvegeo": "22001",
+      "geo_js": 2,
+      "topo_js": 2,
+      "pbi_nombre": "Amealco de Bonfil",
+      "pbi_municipio_suive": "001 Amealco de Bonfil",
+      "coincide": true,
+      "texto_pbi_igual_a_suive": false
+    },
+    {
+      "cve": "002",
+      "suive_texto": "002 Pinal De Amoles",
+      "suive_js": 4,
+      "geo_nombre": "Pinal de Amoles",
+      "geo_cvegeo": "22002",
+      "geo_js": 4,
+      "topo_js": 4,
+      "pbi_nombre": "Pinal de Amoles",
+      "pbi_municipio_suive": "002 Pinal de Amoles",
+      "coincide": true,
+      "texto_pbi_igual_a_suive": false
+    },
+    {
+      "cve": "003",
+      "suive_texto": "003 ARROYO SECO",
+      "suive_js": 4,
+      "geo_nombre": "Arroyo Seco",
+      "geo_cvegeo": "22003",
+      "geo_js": 4,
+      "topo_js": 4,
+      "pbi_nombre": "Arroyo Seco",
+      "pbi_municipio_suive": "003 Arroyo Seco",
+      "coincide": true,
+      "texto_pbi_igual_a_suive": false
+    },
+    {
+      "cve": "004",
+      "suive_texto": "004 Cadereyta De Montes",
+      "suive_js": 3,
+      "geo_nombre": "Cadereyta de Montes",
+      "geo_cvegeo": "22004",
+      "geo_js": 3,
+      "topo_js": 3,
+      "pbi_nombre": "Cadereyta de Montes",
+      "pbi_municipio_suive": "004 Cadereyta de Montes",
+      "coincide": true,
+      "texto_pbi_igual_a_suive": false
+    },
+    {
+      "cve": "005",
+      "suive_texto": "005 Colon",
+      "suive_js": 2,
+      "geo_nombre": "Colón",
+      "geo_cvegeo": "22005",
+      "geo_js": 2,
+      "topo_js": 2,
+      "pbi_nombre": "Colón",
+      "pbi_municipio_suive": "005 Colón",
+      "coincide": true,
+      "texto_pbi_igual_a_suive": false
+    },
+    {
+      "cve": "006",
+      "suive_texto": "006 Corregidora",
+      "suive_js": 1,
+      "geo_nombre": "Corregidora",
+      "geo_cvegeo": "22006",
+      "geo_js": 1,
+      "topo_js": 1,
+      "pbi_nombre": "Corregidora",
+      "pbi_municipio_suive": "006 Corregidora",
+      "coincide": true,
+      "texto_pbi_igual_a_suive": true
+    },
+    {
+      "cve": "007",
+      "suive_texto": "007 Ezequiel Montes",
+      "suive_js": 3,
+      "geo_nombre": "Ezequiel Montes",
+      "geo_cvegeo": "22007",
+      "geo_js": 3,
+      "topo_js": 3,
+      "pbi_nombre": "Ezequiel Montes",
+      "pbi_municipio_suive": "007 Ezequiel Montes",
+      "coincide": true,
+      "texto_pbi_igual_a_suive": true
+    },
+    {
+      "cve": "008",
+      "suive_texto": "008 Huimilpan",
+      "suive_js": 1,
+      "geo_nombre": "Huimilpan",
+      "geo_cvegeo": "22008",
+      "geo_js": 1,
+      "topo_js": 1,
+      "pbi_nombre": "Huimilpan",
+      "pbi_municipio_suive": "008 Huimilpan",
+      "coincide": true,
+      "texto_pbi_igual_a_suive": true
+    },
+    {
+      "cve": "009",
+      "suive_texto": "009 Jalpan De Serra",
+      "suive_js": 4,
+      "geo_nombre": "Jalpan de Serra",
+      "geo_cvegeo": "22009",
+      "geo_js": 4,
+      "topo_js": 4,
+      "pbi_nombre": "Jalpan de Serra",
+      "pbi_municipio_suive": "009 Jalpan de Serra",
+      "coincide": true,
+      "texto_pbi_igual_a_suive": false
+    },
+    {
+      "cve": "010",
+      "suive_texto": "010 Landa De Matamoros",
+      "suive_js": 4,
+      "geo_nombre": "Landa de Matamoros",
+      "geo_cvegeo": "22010",
+      "geo_js": 4,
+      "topo_js": 4,
+      "pbi_nombre": "Landa de Matamoros",
+      "pbi_municipio_suive": "010 Landa de Matamoros",
+      "coincide": true,
+      "texto_pbi_igual_a_suive": false
+    },
+    {
+      "cve": "011",
+      "suive_texto": "011 Marques; El",
+      "suive_js": 1,
+      "geo_nombre": "El Marqués",
+      "geo_cvegeo": "22011",
+      "geo_js": 1,
+      "topo_js": 1,
+      "pbi_nombre": "El Marqués",
+      "pbi_municipio_suive": "011 El Marqués",
+      "coincide": true,
+      "texto_pbi_igual_a_suive": false
+    },
+    {
+      "cve": "012",
+      "suive_texto": "012 Pedro Escobedo",
+      "suive_js": 2,
+      "geo_nombre": "Pedro Escobedo",
+      "geo_cvegeo": "22012",
+      "geo_js": 2,
+      "topo_js": 2,
+      "pbi_nombre": "Pedro Escobedo",
+      "pbi_municipio_suive": "012 Pedro Escobedo",
+      "coincide": true,
+      "texto_pbi_igual_a_suive": true
+    },
+    {
+      "cve": "013",
+      "suive_texto": "013 Peñamiller",
+      "suive_js": 3,
+      "geo_nombre": "Peñamiller",
+      "geo_cvegeo": "22013",
+      "geo_js": 3,
+      "topo_js": 3,
+      "pbi_nombre": "Peñamiller",
+      "pbi_municipio_suive": "013 Peñamiller",
+      "coincide": true,
+      "texto_pbi_igual_a_suive": true
+    },
+    {
+      "cve": "014",
+      "suive_texto": "014 Queretaro",
+      "suive_js": 1,
+      "geo_nombre": "Querétaro",
+      "geo_cvegeo": "22014",
+      "geo_js": 1,
+      "topo_js": 1,
+      "pbi_nombre": "Querétaro",
+      "pbi_municipio_suive": "014 Querétaro",
+      "coincide": true,
+      "texto_pbi_igual_a_suive": false
+    },
+    {
+      "cve": "015",
+      "suive_texto": "015 San Joaquin",
+      "suive_js": 3,
+      "geo_nombre": "San Joaquín",
+      "geo_cvegeo": "22015",
+      "geo_js": 3,
+      "topo_js": 3,
+      "pbi_nombre": "San Joaquín",
+      "pbi_municipio_suive": "015 San Joaquín",
+      "coincide": true,
+      "texto_pbi_igual_a_suive": false
+    },
+    {
+      "cve": "016",
+      "suive_texto": "016 San Juan Del Rio",
+      "suive_js": 2,
+      "geo_nombre": "San Juan del Río",
+      "geo_cvegeo": "22016",
+      "geo_js": 2,
+      "topo_js": 2,
+      "pbi_nombre": "San Juan del Río",
+      "pbi_municipio_suive": "016 San Juan del Río",
+      "coincide": true,
+      "texto_pbi_igual_a_suive": false
+    },
+    {
+      "cve": "017",
+      "suive_texto": "017 Tequisquiapan",
+      "suive_js": 2,
+      "geo_nombre": "Tequisquiapan",
+      "geo_cvegeo": "22017",
+      "geo_js": 2,
+      "topo_js": 2,
+      "pbi_nombre": "Tequisquiapan",
+      "pbi_municipio_suive": "017 Tequisquiapan",
+      "coincide": true,
+      "texto_pbi_igual_a_suive": true
+    },
+    {
+      "cve": "018",
+      "suive_texto": "018 Toliman",
+      "suive_js": 3,
+      "geo_nombre": "Tolimán",
+      "geo_cvegeo": "22018",
+      "geo_js": 3,
+      "topo_js": 3,
+      "pbi_nombre": "Tolimán",
+      "pbi_municipio_suive": "018 Tolimán",
+      "coincide": true,
+      "texto_pbi_igual_a_suive": false
+    }
+  ],
+  "decimales": {
+    "filas_con_decimales": 2356,
+    "ruido_punto_flotante": 1636,
+    "fraccion_real": 720,
+    "grupos_con_fraccion_real": {
+      "De 00 años": 360,
+      "De 01 a 04 años": 360
+    },
+    "max_desviacion_suma_00_mas_01_04_a_entero": 1.99999976757681e-06,
+    "interpretacion": "Ruido de exportación (±1e-6) en valores enteros; y prorrateo del grupo 0-4 entre 'De 00 años' y 'De 01 a 04 años' (su suma es entera). Se conservan los valores originales y se redondea sólo al mostrar."
+  },
+  "totales_anuales": {
+    "2017": 2233603,
+    "2018": 2298993,
+    "2019": 2364645,
+    "2020": 2419819,
+    "2021": 2462684,
+    "2022": 2508214,
+    "2023": 2557915,
+    "2024": 2606698,
+    "2025": 2654421,
+    "2026": 2700978
+  },
+  "totales_por_sexo": {
+    "2017": {
+      "Mujeres": 1136530,
+      "Hombres": 1097073
+    },
+    "2018": {
+      "Mujeres": 1170302,
+      "Hombres": 1128691
+    },
+    "2019": {
+      "Mujeres": 1204362,
+      "Hombres": 1160283
+    },
+    "2020": {
+      "Mujeres": 1233182,
+      "Hombres": 1186637
+    },
+    "2021": {
+      "Mujeres": 1255751,
+      "Hombres": 1206933
+    },
+    "2022": {
+      "Mujeres": 1279210,
+      "Hombres": 1229004
+    },
+    "2023": {
+      "Mujeres": 1304260,
+      "Hombres": 1253655
+    },
+    "2024": {
+      "Mujeres": 1328867,
+      "Hombres": 1277831
+    },
+    "2025": {
+      "Mujeres": 1352999,
+      "Hombres": 1301422
+    },
+    "2026": {
+      "Mujeres": 1376643,
+      "Hombres": 1324335
+    }
+  },
+  "totales_por_jurisdiccion": {
+    "2017": {
+      "Querétaro": 1405963,
+      "San Juan del Río": 567512,
+      "Cadereyta": 172910,
+      "Jalpan": 87218
+    },
+    "2018": {
+      "Querétaro": 1460758,
+      "San Juan del Río": 577362,
+      "Cadereyta": 173124,
+      "Jalpan": 87749
+    },
+    "2019": {
+      "Querétaro": 1516509,
+      "San Juan del Río": 586765,
+      "Cadereyta": 173182,
+      "Jalpan": 88189
+    },
+    "2020": {
+      "Querétaro": 1568418,
+      "San Juan del Río": 591682,
+      "Cadereyta": 171833,
+      "Jalpan": 87886
+    },
+    "2021": {
+      "Querétaro": 1606073,
+      "San Juan del Río": 596787,
+      "Cadereyta": 172029,
+      "Jalpan": 87795
+    },
+    "2022": {
+      "Querétaro": 1645722,
+      "San Juan del Río": 602339,
+      "Cadereyta": 172376,
+      "Jalpan": 87777
+    },
+    "2023": {
+      "Querétaro": 1688435,
+      "San Juan del Río": 608665,
+      "Cadereyta": 172937,
+      "Jalpan": 87878
+    },
+    "2024": {
+      "Querétaro": 1730862,
+      "San Juan del Río": 614561,
+      "Cadereyta": 173378,
+      "Jalpan": 87897
+    },
+    "2025": {
+      "Querétaro": 1772893,
+      "San Juan del Río": 619989,
+      "Cadereyta": 173680,
+      "Jalpan": 87859
+    },
+    "2026": {
+      "Querétaro": 1814408,
+      "San Juan del Río": 624937,
+      "Cadereyta": 173868,
+      "Jalpan": 87765
+    }
+  },
+  "conciliacion_morbilidad_2022_2026": {
+    "celdas_comparadas": 990,
+    "diferencia_maxima": 0.0,
+    "identica": true
+  },
+  "geometria": {
+    "features": 18,
+    "vertices_totales": 4166,
+    "simplificacion": "Douglas-Peucker sobre arcos TopoJSON compartidos, tolerancia 0.0006° (~67 m)",
+    "viewBox": "0 0 636 723"
+  },
+  "errores": []
+}
